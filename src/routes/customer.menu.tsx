@@ -4,7 +4,6 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
 import { CategoryAccordion } from "@/components/customer/CategoryAccordion";
-import { ModeSwitch } from "@/components/customer/ModeSwitch";
 import { MenuItemCard } from "@/components/customer/MenuItemCard";
 import { PopularStrip } from "@/components/customer/PopularStrip";
 import { ApiError } from "@/lib/api/client";
@@ -29,7 +28,6 @@ function MenuPage() {
   const slug = getRestaurantSlug(searchSlug);
   const [search, setSearch] = useState("");
   const [active, setActive] = useState("All");
-  const [mode, setMode] = useState<"TABLE" | "DIGITAL">("TABLE");
   const [items, setItems] = useState<MenuItemRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const recent = useRecent();
@@ -105,7 +103,6 @@ function MenuPage() {
 
   return (
     <CustomerLayout showSearch search={search} onSearchChange={setSearch}>
-      <ModeSwitch mode={mode} onChange={setMode} />
       <CategoryAccordion categories={categories} active={active} onChange={setActive} />
 
       {loading ? (

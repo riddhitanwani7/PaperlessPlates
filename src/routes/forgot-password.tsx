@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/app/AuthShell";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { CheckCircle2 } from "lucide-react";
 import { ApiError } from "@/lib/api/client";
 import { auth } from "@/lib/auth";
+import { useTranslation } from "react-i18next";
+import { setAppLanguage } from "@/i18n";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({ meta: [{ title: "Forgot password — PaperlessPlates" }] }),
@@ -15,9 +17,14 @@ export const Route = createFileRoute("/forgot-password")({
 });
 
 function ForgotPage() {
+  const { t } = useTranslation();
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setAppLanguage("en");
+  }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,7 +33,7 @@ function ForgotPage() {
       await auth.forgotPassword(email);
       setSent(true);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not send reset link");
+      toast.error(err instanceof ApiError ? err.message : t("authActions.couldNotSendResetLink"));
     } finally {
       setLoading(false);
     }
@@ -34,13 +41,13 @@ function ForgotPage() {
 
   return (
     <AuthShell
-      title="Reset your password"
-      subtitle="We'll email you a link to set a new one."
+      title={t("authActions.resetYourPassword")}
+      subtitle={t("authActions.resetSubtitle")}
       footer={
         <>
-          Remembered it?{" "}
+          {t("authActions.rememberedIt")} {" "}
           <Link to="/login" className="text-primary font-medium hover:underline">
-            Back to sign in
+            {t("authActions.backToSignIn")}
           </Link>
         </>
       }
@@ -48,9 +55,9 @@ function ForgotPage() {
       {sent ? (
         <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-card">
           <CheckCircle2 className="mx-auto h-10 w-10 text-primary" />
-          <p className="mt-3 font-medium">Check your inbox</p>
+          <p className="mt-3 font-medium">{t("authActions.checkInbox")}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            If an account exists for{" "}
+            {t("authActions.emailSentPrefix")} {" "}
             <span className="text-foreground">{email}</span>, we sent a reset link.
           </p>
         </div>
@@ -68,7 +75,7 @@ function ForgotPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Sending…" : "Send reset link"}
+            {loading ? t("authActions.sendingResetLink") : t("authActions.sendResetLink")}
           </Button>
         </form>
       )}

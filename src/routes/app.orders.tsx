@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { PageHeader } from "@/components/app/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +35,7 @@ const paymentStatusStyles: Record<string, string> = {
 };
 
 function OrdersPage() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>("PENDING");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +48,7 @@ function OrdersPage() {
         const user = auth.getUser();
        const token = auth.getToken();
            if (!user || !token) {
-          toast.error("Not authenticated");
+          toast.error(t("orders.notAuthenticated"));
           setLoading(false);
           return;
         }
@@ -54,7 +57,7 @@ function OrdersPage() {
         // For now, use owner storage key
         const restaurantId = localStorage.getItem("pp_owner_restaurant_id");
         if (!restaurantId) {
-          toast.error("Restaurant ID not found. Please complete onboarding.");
+          toast.error(t("orders.restaurantIdMissing"));
           setLoading(false);
           return;
         }
@@ -63,7 +66,7 @@ function OrdersPage() {
         setOrders(orderData);
       } catch (error) {
         console.error("Failed to fetch orders:", error);
-        toast.error("Failed to load orders");
+        toast.error(t("orders.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -78,12 +81,12 @@ function OrdersPage() {
     setUpdating(orderId);
     try {
       const token = auth.getToken();
-  if (!token) throw new Error("Not authenticated");      await updateOrderStatusApi(orderId, "ACCEPTED", token);
+  if (!token) throw new Error(t("orders.notAuthenticated"));      await updateOrderStatusApi(orderId, "ACCEPTED", token);
       setOrders(orders.map((o) => (o.id === orderId ? { ...o, status: "ACCEPTED" } : o)));
-      toast.success("Order accepted");
+      toast.success(t("orders.orderAccepted"));
     } catch (error) {
       console.error("Failed to accept order:", error);
-      toast.error("Failed to accept order");
+      toast.error(t("orders.acceptFailed"));
     } finally {
       setUpdating(null);
     }
@@ -93,13 +96,13 @@ function OrdersPage() {
     setUpdating(orderId);
     try {
       const token = auth.getToken();
-      if (!token) throw new Error("Not authenticated");
+      if (!token) throw new Error(t("orders.notAuthenticated"));
       await updateOrderStatusApi(orderId, "COMPLETED", token);
       setOrders(orders.map((o) => (o.id === orderId ? { ...o, status: "COMPLETED" } : o)));
-      toast.success("Order completed");
+      toast.success(t("orders.orderCompleted"));
     } catch (error) {
       console.error("Failed to complete order:", error);
-      toast.error("Failed to complete order");
+      toast.error(t("orders.completeFailed"));
     } finally {
       setUpdating(null);
     }
@@ -109,35 +112,35 @@ function OrdersPage() {
     setUpdating(orderId);
     try {
       const token = auth.getToken();
-      if (!token) throw new Error("Not authenticated");
+      if (!token) throw new Error(t("orders.notAuthenticated"));
       await updateOrderPaymentStatusApi(orderId, "PAID", token);
       setOrders(orders.map((o) => (o.id === orderId ? { ...o, paymentStatus: "PAID", paidAt: new Date().toISOString() } : o)));
-      toast.success("Payment marked as received");
+      toast.success(t("orders.paymentReceived"));
     } catch (error) {
       console.error("Failed to mark payment:", error);
-      toast.error("Failed to mark payment");
+      toast.error(t("orders.paymentUpdateFailed"));
     } finally {
       setUpdating(null);
     }
   }
 
   function getOrderLocation(order: Order): string {
-    if (order.orderType === "TABLE" && order.tableId) return `Table ${order.tableId}`;
-    if (order.orderType === "ROOM" && order.roomId) return `Room ${order.roomId}`;
-    if (order.orderType === "TAKEAWAY") return "Takeaway";
-    return "Restaurant";
+    if (order.orderType === "TABLE" && order.tableId) return t("orders.tableLocation", { id: order.tableId });
+    if (order.orderType === "ROOM" && order.roomId) return t("orders.roomLocation", { id: order.roomId });
+    if (order.orderType === "TAKEAWAY") return t("orderType.TAKEAWAY");
+    return t("orderType.RESTAURANT");
   }
 
   function formatTime(dateString: string): string {
     const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleTimeString(i18n.language.startsWith("hi") ? "hi-IN" : "en-US", { hour: "2-digit", minute: "2-digit" });
   }
 
   return (
     <>
       <PageHeader
-        title="Orders"
-        description="Manage incoming orders and track their progress."
+        title={t("orders.title")}
+        description={t("orders.description")}
       />
 
       <Card className="rounded-2xl p-4 shadow-card sm:p-5">
@@ -154,7 +157,7 @@ function OrdersPage() {
                   : "bg-muted hover:bg-muted/80"
               )}
             >
-              {tab} ({orders.filter((o) => o.status === tab).length})
+              {t(`orderStatus.${tab}`)} ({orders.filter((o) => o.status === tab).length})
             </button>
           ))}
         </div>
@@ -168,11 +171,11 @@ function OrdersPage() {
             <div className="grid h-16 w-16 place-items-center rounded-full bg-muted text-muted-foreground">
               <Loader2 className="h-8 w-8 opacity-50" />
             </div>
-            <h3 className="mt-4 font-semibold">No {activeTab.toLowerCase()} orders</h3>
+            <h3 className="mt-4 font-semibold">{t(`orders.no${activeTab[0]}${activeTab.slice(1).toLowerCase()}Orders`)}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              {activeTab === "PENDING" && "New orders will appear here when customers place them."}
-              {activeTab === "ACCEPTED" && "Accepted orders will appear here."}
-              {activeTab === "COMPLETED" && "Completed orders will appear here."}
+              {activeTab === "PENDING" && t("orders.pendingEmpty")}
+              {activeTab === "ACCEPTED" && t("orders.acceptedEmpty")}
+              {activeTab === "COMPLETED" && t("orders.completedEmpty")}
             </p>
           </div>
         ) : (
@@ -187,16 +190,16 @@ function OrdersPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className="font-display text-lg font-semibold">{order.orderNumber}</span>
                       <Badge className={cn("border-0", statusStyles[order.status])}>
-                        {order.status}
+                        {t(`orderStatus.${order.status}`)}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        {order.orderType}
+                        {t(`orderType.${order.orderType}`)}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        {order.paymentMethod}
+                        {t(`paymentMethod.${order.paymentMethod}`)}
                       </Badge>
                       <Badge className={cn("border-0 text-xs", paymentStatusStyles[order.paymentStatus])}>
-                        {order.paymentStatus}
+                        {t(`paymentStatus.${order.paymentStatus}`)}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mb-3">
@@ -212,12 +215,12 @@ function OrdersPage() {
                     </div>
                     {order.notes && (
                       <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-2 text-sm text-amber-800">
-                        <span className="font-semibold">Note: </span>
+                        <span className="font-semibold">{t("orders.note")}: </span>
                         {order.notes}
                       </div>
                     )}
                     <div className="mt-3 pt-3 border-t border-border flex justify-between font-semibold">
-                      <span>Total</span>
+                      <span>{t("orders.total")}</span>
                       <span>${order.total.toFixed(2)}</span>
                     </div>
                   </div>
@@ -231,7 +234,7 @@ function OrdersPage() {
                         {updating === order.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          "Accept"
+                          t("orders.accept")
                         )}
                       </Button>
                     )}
@@ -244,7 +247,7 @@ function OrdersPage() {
                         {updating === order.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          "Complete"
+                          t("orders.complete")
                         )}
                       </Button>
                     )}
@@ -258,7 +261,7 @@ function OrdersPage() {
                         {updating === order.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          "Mark Cash Received"
+                          t("orders.markCashReceived")
                         )}
                       </Button>
                     )}

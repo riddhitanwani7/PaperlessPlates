@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { PageHeader } from "@/components/app/AppLayout";
 import { RoleGuard } from "@/components/app/RoleGuard";
 import { Card } from "@/components/ui/card";
@@ -33,18 +35,9 @@ export const Route = createFileRoute("/app/analytics")({
 
 const pieColors = ["var(--primary)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 
-const ORDER_TYPE_LABELS: Record<string, string> = {
-  TABLE: "Table",
-  ROOM: "Room",
-  TAKEAWAY: "Takeaway",
-  RESTAURANT: "Restaurant",
-};
-
 function formatHour(hour: number): string {
-  if (hour === 0) return "12 AM";
-  if (hour === 12) return "12 PM";
-  if (hour < 12) return `${hour} AM`;
-  return `${hour - 12} PM`;
+  const locale = i18n.language.startsWith("hi") ? "hi-IN" : "en-US";
+  return new Intl.DateTimeFormat(locale, { hour: "numeric", hour12: true }).format(new Date(2000, 0, 1, hour, 0, 0));
 }
 
 function formatCurrency(amount: number): string {
@@ -52,6 +45,7 @@ function formatCurrency(amount: number): string {
 }
 
 function AnalyticsPage() {
+  const { t } = useTranslation();
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const { restaurant } = useRestaurant();
@@ -74,7 +68,7 @@ function AnalyticsPage() {
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
-      toast.error("Failed to load analytics");
+      toast.error(t("analytics.loadFailed"));
       setLoading(false);
     }
   }
@@ -87,8 +81,8 @@ function AnalyticsPage() {
     return (
       <>
         <PageHeader
-          title="Analytics"
-          description="Understand performance across orders, menu and customers."
+          title={t("analytics.title")}
+          description={t("analytics.description")}
         />
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -101,18 +95,18 @@ function AnalyticsPage() {
     return (
       <>
         <PageHeader
-          title="Analytics"
-          description="Understand performance across orders, menu and customers."
+          title={t("analytics.title")}
+          description={t("analytics.description")}
         />
         <div className="flex justify-center py-16">
-          <p className="text-muted-foreground">No analytics data available</p>
+          <p className="text-muted-foreground">{t("analytics.noData")}</p>
         </div>
       </>
     );
   }
 
   const pieData = analytics.orderTypes.map((item) => ({
-    name: ORDER_TYPE_LABELS[item.type] || item.type,
+    name: t(`orderType.${item.type}`),
     value: item.count,
   }));
 
@@ -128,37 +122,37 @@ function AnalyticsPage() {
   }));
 
   const revenueTrendData = analytics.revenueTrend.map((item) => ({
-    date: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    date: new Date(item.date).toLocaleDateString(i18n.language.startsWith("hi") ? "hi-IN" : "en-US", { weekday: 'short', month: 'short', day: 'numeric' }),
     total: item.total,
   }));
 
   return (
     <>
       <PageHeader
-        title="Analytics"
-        description="Understand performance across orders, menu and customers."
+        title={t("analytics.title")}
+        description={t("analytics.description")}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card className="rounded-2xl p-5 shadow-card">
-          <p className="text-xs text-muted-foreground">Total Orders (Today)</p>
+          <p className="text-xs text-muted-foreground">{t("analytics.totalOrdersToday")}</p>
           <p className="mt-2 font-display text-2xl">{analytics.totals.orders.today}</p>
-          <p className="mt-1 text-xs text-muted-foreground">This week: {analytics.totals.orders.week}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("analytics.thisWeek")}: {analytics.totals.orders.week}</p>
         </Card>
         <Card className="rounded-2xl p-5 shadow-card">
-          <p className="text-xs text-muted-foreground">Revenue (Today)</p>
+          <p className="text-xs text-muted-foreground">{t("analytics.revenueToday")}</p>
           <p className="mt-2 font-display text-2xl">{formatCurrency(analytics.revenue.today)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">This week: {formatCurrency(analytics.revenue.week)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("analytics.thisWeek")}: {formatCurrency(analytics.revenue.week)}</p>
         </Card>
         <Card className="rounded-2xl p-5 shadow-card">
-          <p className="text-xs text-muted-foreground">Average Order Value</p>
+          <p className="text-xs text-muted-foreground">{t("analytics.averageOrderValue")}</p>
           <p className="mt-2 font-display text-2xl">{formatCurrency(analytics.averageOrderValue)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">This month</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("analytics.thisMonth")}</p>
         </Card>
         <Card className="rounded-2xl p-5 shadow-card">
-          <p className="text-xs text-muted-foreground">QR Scans (Today)</p>
+          <p className="text-xs text-muted-foreground">{t("analytics.qrScansToday")}</p>
           <p className="mt-2 font-display text-2xl">{analytics.qrScans.today}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Total: {analytics.qrScans.total}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("analytics.total")}: {analytics.qrScans.total}</p>
         </Card>
       </div>
 
@@ -166,9 +160,9 @@ function AnalyticsPage() {
         <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
           <div className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
-            <span className="font-medium">Advanced Analytics</span>
+            <span className="font-medium">{t("analytics.advancedTitle")}</span>
           </div>
-          <p className="mt-1">Upgrade to Premium for advanced analytics including customer insights, detailed reports, and export capabilities.</p>
+          <p className="mt-1">{t("analytics.advancedDescription")}</p>
         </div>
       )}
 
@@ -176,15 +170,15 @@ function AnalyticsPage() {
         <Card className="rounded-2xl p-5 shadow-card">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold">Revenue Trend</h3>
-              <p className="text-xs text-muted-foreground">Daily revenue over the last 7 days</p>
+              <h3 className="font-semibold">{t("analytics.revenueTrend")}</h3>
+              <p className="text-xs text-muted-foreground">{t("analytics.dailyRevenueLast7Days")}</p>
             </div>
-            <Badge variant="secondary">Last 7 Days</Badge>
+            <Badge variant="secondary">{t("analytics.last7Days")}</Badge>
           </div>
           <div className="h-72">
             {revenueTrendData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No revenue data available
+                {t("analytics.noRevenueData")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -213,15 +207,15 @@ function AnalyticsPage() {
         <Card className="rounded-2xl p-5 shadow-card lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold">Peak Hours</h3>
-              <p className="text-xs text-muted-foreground">Order volume by hour (this month)</p>
+              <h3 className="font-semibold">{t("analytics.peakHours")}</h3>
+              <p className="text-xs text-muted-foreground">{t("analytics.orderVolumeByHour")}</p>
             </div>
-            <Badge variant="secondary">This Month</Badge>
+            <Badge variant="secondary">{t("analytics.thisMonth")}</Badge>
           </div>
           <div className="h-72">
             {peakHoursData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No orders yet
+                {t("analytics.noOrdersYet")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -246,14 +240,14 @@ function AnalyticsPage() {
 
         <Card className="rounded-2xl p-5 shadow-card">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-semibold">Orders by Type</h3>
-            <Badge variant="secondary">This Month</Badge>
+            <h3 className="font-semibold">{t("analytics.ordersByType")}</h3>
+            <Badge variant="secondary">{t("analytics.thisMonth")}</Badge>
           </div>
-          <p className="text-xs text-muted-foreground">Where orders come from</p>
+          <p className="text-xs text-muted-foreground">{t("analytics.whereOrdersComeFrom")}</p>
           <div className="h-56">
             {totalOrders === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No orders yet
+                {t("analytics.noOrdersYet")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -295,12 +289,12 @@ function AnalyticsPage() {
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="rounded-2xl p-5 shadow-card">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">Popular Items</h3>
-            <Badge variant="secondary">This Month</Badge>
+            <h3 className="font-semibold">{t("analytics.popularItems")}</h3>
+            <Badge variant="secondary">{t("analytics.thisMonth")}</Badge>
           </div>
           <ul className="divide-y divide-border">
             {analytics.popularItems.length === 0 ? (
-              <li className="py-8 text-center text-sm text-muted-foreground">No items sold yet</li>
+              <li className="py-8 text-center text-sm text-muted-foreground">{t("analytics.noItemsSoldYet")}</li>
             ) : (
               analytics.popularItems.map((p, i) => (
                 <li key={p.name} className="flex items-center justify-between py-3">
@@ -311,7 +305,7 @@ function AnalyticsPage() {
                     <span className="text-sm font-medium">{p.name}</span>
                   </div>
                   <div className="flex items-center gap-6 text-sm">
-                    <span className="text-muted-foreground">{p.quantity} sold</span>
+                    <span className="text-muted-foreground">{p.quantity} {t("analytics.sold")}</span>
                   </div>
                 </li>
               ))
@@ -321,24 +315,24 @@ function AnalyticsPage() {
 
         <Card className="rounded-2xl p-5 shadow-card">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">Recent Orders</h3>
-            <Badge variant="secondary">Latest 10</Badge>
+            <h3 className="font-semibold">{t("analytics.recentOrders")}</h3>
+            <Badge variant="secondary">{t("analytics.latest10")}</Badge>
           </div>
           <ul className="divide-y divide-border">
             {analytics.recentOrders.length === 0 ? (
-              <li className="py-8 text-center text-sm text-muted-foreground">No orders yet</li>
+              <li className="py-8 text-center text-sm text-muted-foreground">{t("analytics.noOrdersYet")}</li>
             ) : (
               analytics.recentOrders.map((order) => (
                 <li key={order.orderNumber} className="flex items-center justify-between py-3">
                   <div className="flex items-center gap-3">
                     <div>
                       <p className="text-sm font-medium">{order.orderNumber}</p>
-                      <p className="text-xs text-muted-foreground">{ORDER_TYPE_LABELS[order.orderType] || order.orderType}</p>
+                      <p className="text-xs text-muted-foreground">{t(`orderType.${order.orderType}`)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <span className="font-medium">{formatCurrency(order.total)}</span>
-                    <Badge variant="outline" className="text-xs">{order.status}</Badge>
+                    <Badge variant="outline" className="text-xs">{t(`orderStatus.${order.status}`)}</Badge>
                   </div>
                 </li>
               ))

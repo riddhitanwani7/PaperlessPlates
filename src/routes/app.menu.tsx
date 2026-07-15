@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/AppLayout";
 import { DocumentMenuSection } from "@/components/app/menu/DocumentMenuSection";
@@ -33,17 +34,22 @@ import {
 } from "@/lib/api/menuItem.api";
 import { ApiError } from "@/lib/api/client";
 import { auth } from "@/lib/auth";
+import { formatCurrency } from "@/lib/format";
 import type { MenuCategory, MenuItemRecord } from "@/lib/types/menu";
 import { Plus, Edit2, Trash2, ImageIcon, Star, Loader2 } from "lucide-react";
+import { useRestaurant } from "@/components/app/RestaurantProvider";
 
 export const Route = createFileRoute("/app/menu")({
   component: MenuPage,
 });
 
 function MenuPage() {
+  const { t } = useTranslation();
+  const { restaurant } = useRestaurant();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItemRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const currency = restaurant?.settings?.currency ?? "INR";
 
   async function loadData() {
     const token = auth.getToken();
@@ -58,7 +64,7 @@ function MenuPage() {
       setCategories(categoryRes.categories);
       setItems(itemRes.items);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not load menu data");
+      toast.error(err instanceof ApiError ? err.message : t("menu.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -71,33 +77,39 @@ function MenuPage() {
   return (
     <>
       <PageHeader
-        title="Menu Management"
-        description="Organize categories, items, pricing, and availability."
+        title={t("menu.title")}
+        description={t("menu.description")}
         actions={<ItemDialog categories={categories} onSaved={loadData} />}
       />
 
       <Tabs defaultValue="items">
         <TabsList>
-          <TabsTrigger value="items">Items</TabsTrigger>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
-          <TabsTrigger value="document">Document</TabsTrigger>
+          <TabsTrigger value="items">{t("menu.itemsTab")}</TabsTrigger>
+          <TabsTrigger value="categories">{t("menu.categoriesTab")}</TabsTrigger>
+          <TabsTrigger value="document">{t("menu.documentTab")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="items" className="mt-5">
           {loading ? (
             <Card className="rounded-2xl p-10 text-center text-sm text-muted-foreground shadow-card">
               <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-              Loading items...
+              {t("menu.loadingItems")}
             </Card>
           ) : items.length === 0 ? (
             <Card className="rounded-2xl p-10 text-center text-sm text-muted-foreground shadow-card">
-              <p className="font-medium text-foreground">No items yet</p>
-              <p className="mt-1">Create your first menu item to get started.</p>
+              <p className="font-medium text-foreground">{t("menu.noItemsYet")}</p>
+              <p className="mt-1">{t("menu.createFirstItem")}</p>
             </Card>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {items.map((it) => (
-                <ItemCard key={it.id} item={it} categories={categories} onChanged={loadData} />
+                <ItemCard
+                  key={it.id}
+                  item={it}
+                  categories={categories}
+                  currency={currency}
+                  onChanged={loadData}
+                />
               ))}
             </div>
           )}
@@ -106,18 +118,18 @@ function MenuPage() {
         <TabsContent value="categories" className="mt-5">
           <Card className="rounded-2xl p-5 shadow-card">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold">Categories</h3>
+              <h3 className="font-semibold">{t("menu.categories")}</h3>
               <CategoryDialog onSaved={loadData} />
             </div>
             {loading ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">Loading categories...</div>
+              <div className="py-8 text-center text-sm text-muted-foreground">{t("menu.loadingCategories")}</div>
             ) : (
               <ul className="divide-y divide-border">
                 {categories.map((c) => (
                   <li key={c.id} className="flex items-center justify-between py-3">
                     <div>
                       <p className="font-medium">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.items} items</p>
+                      <p className="text-xs text-muted-foreground">{c.items} {t("menu.itemsCount")}</p>
                     </div>
                     <div className="flex gap-1">
                       <CategoryDialog category={c} onSaved={loadData} />
@@ -129,10 +141,10 @@ function MenuPage() {
                           if (!token) return;
                           try {
                             await deleteCategoryApi(token, c.id);
-                            toast.success("Category deleted");
+                            toast.success(t("menu.categoryDeleted"));
                             loadData();
                           } catch (err) {
-                            toast.error(err instanceof ApiError ? err.message : "Could not delete category");
+                            toast.error(err instanceof ApiError ? err.message : t("menu.deleteCategoryFailed"));
                           }
                         }}
                       >
@@ -157,12 +169,15 @@ function MenuPage() {
 function ItemCard({
   item,
   categories,
+  currency,
   onChanged,
 }: {
   item: MenuItemRecord;
   categories: MenuCategory[];
+  currency: string;
   onChanged: () => void;
 }) {
+  const { t } = useTranslation();
   const image = item.image ?? item.imageUrl;
 
   async function toggleAvailable() {
@@ -174,7 +189,7 @@ function ItemCard({
       await updateMenuItemApi(token, item.id, formData);
       onChanged();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not update availability");
+      toast.error(err instanceof ApiError ? err.message : t("menu.updateAvailabilityFailed"));
     }
   }
 
@@ -187,7 +202,7 @@ function ItemCard({
       await updateMenuItemApi(token, item.id, formData);
       onChanged();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not update popular flag");
+      toast.error(err instanceof ApiError ? err.message : t("menu.updatePopularFailed"));
     }
   }
 
@@ -201,7 +216,7 @@ function ItemCard({
           <div className="flex h-full w-full items-center justify-center bg-muted">
             <div className="text-center">
               <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground opacity-40" />
-              <p className="mt-2 text-xs text-muted-foreground">No Image Available</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("menu.noImageAvailable")}</p>
             </div>
           </div>
         )}
@@ -215,13 +230,13 @@ function ItemCard({
               <h3 className="font-semibold text-base">{item.name}</h3>
               {item.popular && (
                 <Badge className="border-0 bg-gradient-coral text-primary-foreground text-xs">
-                  <Star className="mr-1 h-3 w-3" /> Popular
+                  <Star className="mr-1 h-3 w-3" /> {t("menu.popular")}
                 </Badge>
               )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{item.category}</p>
           </div>
-          <span className="font-display text-lg font-semibold">${item.price}</span>
+          <span className="font-display text-lg font-semibold">{formatCurrency(item.price, currency)}</span>
         </div>
         <p className="line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
         <div className="flex flex-wrap gap-1.5">
@@ -239,11 +254,11 @@ function ItemCard({
           <div className="flex items-center gap-2">
             <Switch checked={item.available} onCheckedChange={() => void toggleAvailable()} id={`av-${item.id}`} />
             <Label htmlFor={`av-${item.id}`} className="text-sm text-muted-foreground">
-              Available
+              {t("menu.available")}
             </Label>
           </div>
           <div className="flex gap-1">
-            <Button size="icon" variant="ghost" onClick={() => void togglePopular()} aria-label="Toggle popular">
+            <Button size="icon" variant="ghost" onClick={() => void togglePopular()} aria-label={t("menu.togglePopular") }>
               <Star className={`h-4 w-4 ${item.popular ? "text-primary" : ""}`} />
             </Button>
             <ItemDialog item={item} categories={categories} onSaved={onChanged} triggerEdit />
@@ -256,10 +271,10 @@ function ItemCard({
                 if (!token) return;
                 try {
                   await deleteMenuItemApi(token, item.id);
-                  toast.success("Item deleted");
+                  toast.success(t("menu.itemDeleted"));
                   onChanged();
                 } catch (err) {
-                  toast.error(err instanceof ApiError ? err.message : "Could not delete item");
+                  toast.error(err instanceof ApiError ? err.message : t("menu.deleteItemFailed"));
                 }
               }}
             >
@@ -279,6 +294,7 @@ function CategoryDialog({
   category?: MenuCategory;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category?.name ?? "");
   const [description, setDescription] = useState(category?.description ?? "");
@@ -299,15 +315,15 @@ function CategoryDialog({
     try {
       if (category) {
         await updateCategoryApi(token, category.id, { name, description });
-        toast.success("Category updated");
+        toast.success(t("menu.categoryUpdated"));
       } else {
         await createCategoryApi(token, { name, description });
-        toast.success("Category created");
+        toast.success(t("menu.categoryCreated"));
       }
       setOpen(false);
       onSaved();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not save category");
+      toast.error(err instanceof ApiError ? err.message : t("menu.saveCategoryFailed"));
     } finally {
       setSaving(false);
     }
@@ -322,30 +338,30 @@ function CategoryDialog({
           </Button>
         ) : (
           <Button size="sm" variant="outline">
-            <Plus className="mr-1 h-4 w-4" /> Add
+            <Plus className="mr-1 h-4 w-4" /> {t("common.add")}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{category ? "Edit category" : "New category"}</DialogTitle>
+          <DialogTitle>{category ? t("menu.editCategory") : t("menu.newCategory")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>{t("forms.name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Description</Label>
+            <Label>{t("forms.description")}</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={() => void save()} disabled={saving || !name.trim()}>
-            Save
+            {saving ? t("menu.saving") : t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -364,6 +380,7 @@ function ItemDialog({
   onSaved: () => void;
   triggerEdit?: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(item?.name ?? "");
   const [price, setPrice] = useState(item ? String(item.price) : "");
@@ -403,15 +420,15 @@ function ItemDialog({
     try {
       if (item) {
         await updateMenuItemApi(token, item.id, formData);
-        toast.success("Item updated");
+        toast.success(t("menu.itemUpdated"));
       } else {
         await createMenuItemApi(token, formData);
-        toast.success("Item created");
+        toast.success(t("menu.itemCreated"));
       }
       setOpen(false);
       onSaved();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not save item");
+      toast.error(err instanceof ApiError ? err.message : t("menu.saveItemFailed"));
     } finally {
       setSaving(false);
     }
@@ -426,27 +443,27 @@ function ItemDialog({
       ) : (
         <DialogTrigger asChild>
           <Button>
-            <Plus className="mr-1 h-4 w-4" /> New item
+            <Plus className="mr-1 h-4 w-4" /> {t("menu.newItem")}
           </Button>
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{item ? "Edit menu item" : "New menu item"}</DialogTitle>
+          <DialogTitle>{item ? t("menu.editMenuItem") : t("menu.newMenuItem")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Wagyu Burger" />
+              <Label>{t("forms.name")}</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("menu.namePlaceholder")} />
             </div>
             <div className="space-y-2">
-              <Label>Price</Label>
-              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="22.00" />
+              <Label>{t("forms.price")}</Label>
+              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={t("menu.pricePlaceholder")} />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Category</Label>
+            <Label>{t("forms.category")}</Label>
             <select
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={categoryId}
@@ -460,51 +477,51 @@ function ItemDialog({
             </select>
           </div>
           <div className="space-y-2">
-            <Label>Description</Label>
+            <Label>{t("forms.description")}</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Short description shown on the menu..."
+              placeholder={t("menu.descriptionPlaceholder")}
               rows={3}
             />
           </div>
           <div className="space-y-2">
-            <Label>Image</Label>
+            <Label>{t("forms.image")}</Label>
             <input ref={imageRef} type="file" accept="image/*" className="block w-full text-sm" />
           </div>
           <div className="space-y-2">
-            <Label>Dietary tags</Label>
+            <Label>{t("menu.dietaryTagsLabel")}</Label>
             <div className="flex flex-wrap gap-1.5">
-              {["Vegetarian", "Vegan", "Gluten-free", "Spicy", "Signature"].map((t) => {
-                const on = tags.includes(t);
+              {(["Vegetarian", "Vegan", "Gluten-free", "Spicy", "Signature"] as const).map((tag) => {
+                const on = tags.includes(tag);
                 return (
                   <button
-                    key={t}
+                    key={tag}
                     type="button"
-                    onClick={() => setTags(on ? tags.filter((x) => x !== t) : [...tags, t])}
+                    onClick={() => setTags(on ? tags.filter((x) => x !== tag) : [...tags, tag])}
                     className={`rounded-full border px-3 py-1 text-xs transition ${
                       on
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border hover:bg-muted"
                     }`}
                   >
-                    {t}
+                    {t(`menu.dietaryTags.${tag.toLowerCase().replace(/[^a-z]+/g, "_")}`)}
                   </button>
                 );
               })}
             </div>
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
-            <Label className="text-sm">Mark as popular</Label>
+            <Label className="text-sm">{t("menu.markAsPopular")}</Label>
             <Switch checked={popular} onCheckedChange={setPopular} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={() => void save()} disabled={saving || !name.trim() || !categoryId}>
-            Save item
+            {saving ? t("menu.saving") : t("menu.saveItem")}
           </Button>
         </DialogFooter>
       </DialogContent>

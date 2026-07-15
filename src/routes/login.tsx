@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/app/AuthShell";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { auth } from "@/lib/auth";
 import { roleHome } from "@/lib/roles";
+import { setAppLanguage } from "@/i18n";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in — PaperlessPlates" }] }),
@@ -21,6 +22,10 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setAppLanguage("en");
+  }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -86,7 +91,7 @@ function LoginPage() {
           />
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Signing in…" : "Sign in"}
+          {loading ? t("authActions.signingIn") : t("auth.signIn")}
         </Button>
       </form>
     </AuthShell>

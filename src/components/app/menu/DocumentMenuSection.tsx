@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { format } from "date-fns";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,7 @@ function getMenuFileName(menu: RestaurantMenu) {
 }
 
 export function DocumentMenuSection() {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [menu, setMenu] = useState<RestaurantMenu | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ export function DocumentMenuSection() {
       const { menu: currentMenu } = await getMyMenuApi(token);
       setMenu(currentMenu);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not load document menu");
+      toast.error(err instanceof ApiError ? err.message : t("documentMenu.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -72,9 +74,9 @@ export function DocumentMenuSection() {
     try {
       const { menu: uploadedMenu } = await uploadMenuApi(token, file);
       setMenu(uploadedMenu);
-      toast.success(menu ? "Menu replaced successfully" : "Menu uploaded successfully");
+      toast.success(menu ? t("documentMenu.replaced") : t("documentMenu.uploaded"));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not upload menu");
+      toast.error(err instanceof ApiError ? err.message : t("documentMenu.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -95,9 +97,9 @@ export function DocumentMenuSection() {
     try {
       await deleteMenuApi(token);
       setMenu(null);
-      toast.success("Menu deleted successfully");
+      toast.success(t("documentMenu.deleted"));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not delete menu");
+      toast.error(err instanceof ApiError ? err.message : t("documentMenu.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -117,7 +119,7 @@ export function DocumentMenuSection() {
           ) : (
             <Upload className="mr-1 h-4 w-4" />
           )}
-          {menu ? "Replace Menu" : "Upload Menu"}
+          {menu ? t("documentMenu.replace") : t("documentMenu.upload")}
         </Button>
       </div>
 
@@ -133,7 +135,7 @@ export function DocumentMenuSection() {
         <Card className="rounded-2xl p-10 shadow-card">
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading document menu...
+            {t("documentMenu.loading")}
           </div>
         </Card>
       ) : menu ? (
@@ -146,18 +148,22 @@ export function DocumentMenuSection() {
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Current Menu
+                    {t("documentMenu.currentMenu")}
                   </p>
                   <h3 className="mt-1 font-semibold">{getMenuFileName(menu)}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Uploaded: {format(new Date(menu.menuUploadedAt), "d MMM yyyy")}
+                    {t("documentMenu.uploadedOn")} {new Date(menu.menuUploadedAt).toLocaleDateString(i18n.language.startsWith("hi") ? "hi-IN" : "en-US", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" asChild>
                   <a href={menu.menuFileUrl} target="_blank" rel="noreferrer">
-                    Preview
+                    {t("documentMenu.preview")}
                   </a>
                 </Button>
                 <Button
@@ -165,26 +171,26 @@ export function DocumentMenuSection() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
                 >
-                  Replace
+                  {t("documentMenu.replace")}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" disabled={deleting}>
                       <Trash2 className="mr-1 h-4 w-4 text-destructive" />
-                      Delete
+                      {t("common.delete")}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete menu?</AlertDialogTitle>
+                      <AlertDialogTitle>{t("documentMenu.deleteTitle")}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This removes the uploaded menu file from your restaurant.
+                        {t("documentMenu.deleteDescription")}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                       <AlertDialogAction onClick={() => void handleDelete()} disabled={deleting}>
-                        Delete menu
+                        {t("documentMenu.delete")}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -197,13 +203,13 @@ export function DocumentMenuSection() {
             {isImage ? (
               <img
                 src={menu.menuFileUrl}
-                alt="Restaurant menu"
+                alt={t("documentMenu.menuAlt")}
                 className="max-h-[70vh] w-full object-contain bg-muted"
               />
             ) : (
               <iframe
                 src={menu.menuFileUrl}
-                title="Restaurant menu preview"
+                title={t("documentMenu.previewTitle")}
                 className="h-[70vh] w-full border-0 bg-muted"
               />
             )}
@@ -214,9 +220,9 @@ export function DocumentMenuSection() {
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-primary-soft text-primary">
             <Upload className="h-7 w-7" />
           </div>
-          <h3 className="mt-4 font-semibold">No document menu uploaded yet</h3>
+          <h3 className="mt-4 font-semibold">{t("documentMenu.emptyTitle")}</h3>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Upload a PDF or image menu file for document mode.
+            {t("documentMenu.emptyDescription")}
           </p>
           <Button className="mt-6" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
             {uploading ? (
@@ -224,7 +230,7 @@ export function DocumentMenuSection() {
             ) : (
               <Upload className="mr-1 h-4 w-4" />
             )}
-            Upload Menu
+            {t("documentMenu.upload")}
           </Button>
         </Card>
       )}

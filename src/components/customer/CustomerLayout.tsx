@@ -34,7 +34,6 @@ export function CustomerLayout({
   
   const restaurantInfo = getRestaurantInfo();
   const restaurantName = restaurantInfo?.restaurantName ?? RESTAURANT.name;
-  const tagline = restaurantInfo?.description || RESTAURANT.tagline;
   const logoUrl = restaurantInfo?.logoUrl;
   const primaryColor = restaurantInfo?.theme?.primaryColor;
   const fontFamily = restaurantInfo?.theme?.fontFamily;
@@ -77,7 +76,7 @@ export function CustomerLayout({
                 {title ?? restaurantName}
               </p>
               {!title && (
-                <p className="truncate text-xs text-muted-foreground">{tagline}</p>
+                <p className="truncate text-xs text-muted-foreground">{t("customer.poweredBy")}</p>
               )}
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/app/AuthShell";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { auth } from "@/lib/auth";
+import { setAppLanguage } from "@/i18n";
 
 export const Route = createFileRoute("/register")({
   head: () => ({ meta: [{ title: "Create your account — PaperlessPlates" }] }),
@@ -23,6 +24,10 @@ function RegisterPage() {
     password: "",
   });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setAppLanguage("en");
+  }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -90,7 +95,7 @@ function RegisterPage() {
           </p>
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Creating account…" : "Create free account"}
+          {loading ? t("authActions.creatingAccount") : t("auth.createFreeAccount")}
         </Button>
         <p className="text-center text-xs text-muted-foreground">
           {t("auth.terms")}

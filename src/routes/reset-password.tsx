@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/app/AuthShell";
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
 import { auth } from "@/lib/auth";
 import { roleHome } from "@/lib/roles";
+import { useTranslation } from "react-i18next";
+import { setAppLanguage } from "@/i18n";
 
 const resetSearchSchema = z.object({
   token: z.string().optional(),
@@ -21,27 +23,32 @@ export const Route = createFileRoute("/reset-password")({
 });
 
 function ResetPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { token } = Route.useSearch();
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    setAppLanguage("en");
+  }, []);
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!token) {
-      toast.error("Reset link is invalid or missing.");
+      toast.error(t("authActions.resetLinkMissing"));
       return;
     }
     if (p1 !== p2) {
-      toast.error("Passwords do not match.");
+      toast.error(t("authActions.passwordMismatch"));
       return;
     }
 
     setLoading(true);
     try {
       const user = await auth.resetPassword(token, p1);
-      toast.success("Password updated. You are now signed in.");
+      toast.success(t("authActions.passwordUpdated"));
       // Only OWNER needs onboarding; staff go directly to their role's home
       if (user.role === "OWNER" && !user.isOnboarded) {
         navigate({ to: "/onboarding" });
@@ -49,7 +56,7 @@ function ResetPage() {
         navigate({ to: roleHome(user.role) });
       }
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not reset password");
+      toast.error(err instanceof ApiError ? err.message : t("authActions.couldNotResetPassword"));
     } finally {
       setLoading(false);
     }
@@ -58,16 +65,16 @@ function ResetPage() {
   if (!token) {
     return (
       <AuthShell
-        title="Invalid reset link"
-        subtitle="This password reset link is missing or has expired."
+        title={t("authActions.invalidResetLink")}
+        subtitle={t("authActions.resetLinkExpired")}
         footer={
           <Link to="/forgot-password" className="text-primary font-medium hover:underline">
-            Request a new link
+            {t("authActions.requestNewLink")}
           </Link>
         }
       >
         <div className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-muted-foreground shadow-card">
-          Open the link from your email, or request a new one.
+          {t("authActions.openTheLink")}
         </div>
       </AuthShell>
     );
@@ -75,17 +82,17 @@ function ResetPage() {
 
   return (
     <AuthShell
-      title="Set a new password"
-      subtitle="Choose a strong password you haven't used before."
+      title={t("authActions.setNewPassword")}
+      subtitle={t("authActions.chooseStrongPassword")}
       footer={
         <Link to="/login" className="text-primary font-medium hover:underline">
-          Back to sign in
+          {t("authActions.backToSignIn")}
         </Link>
       }
     >
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="p1">New password</Label>
+          <Label htmlFor="p1">{t("authActions.newPassword")}</Label>
           <Input
             id="p1"
             type="password"
@@ -96,7 +103,7 @@ function ResetPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="p2">Confirm password</Label>
+          <Label htmlFor="p2">{t("authActions.confirmPassword")}</Label>
           <Input
             id="p2"
             type="password"
@@ -106,7 +113,7 @@ function ResetPage() {
             required
           />
           <p className="text-xs text-muted-foreground">
-            Minimum 8 characters with one number.
+            {t("auth.minimumPassword")}
           </p>
         </div>
         <Button
@@ -114,7 +121,7 @@ function ResetPage() {
           className="w-full"
           disabled={loading || !p1 || p1 !== p2}
         >
-          {loading ? "Updating…" : "Update password"}
+          {loading ? t("authActions.updatingPassword") : t("authActions.updatePassword")}
         </Button>
       </form>
     </AuthShell>

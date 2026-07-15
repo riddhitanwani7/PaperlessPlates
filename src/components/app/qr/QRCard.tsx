@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { QREntity } from "@/lib/types/qr";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,13 +23,18 @@ export function QRCard({
   qr: QREntity;
   onToggle: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [printDataUrl, setPrintDataUrl] = useState<string | null>(null);
 
-  const tableLabel = qr.type === "Table" ? `TABLE ${qr.tableId || ""}` 
-                  : qr.type === "Room" ? `ROOM ${qr.roomId || ""}`
-                  : qr.type === "Takeaway" ? "TAKEAWAY"
-                  : "MAIN MENU";
+  const tableLabel =
+    qr.type === "Table"
+      ? t("orders.tableLocation", { id: qr.tableId || "" })
+      : qr.type === "Room"
+        ? t("orders.roomLocation", { id: qr.roomId || "" })
+        : qr.type === "Takeaway"
+          ? t("orderType.TAKEAWAY")
+          : t("qr.mainMenuLabel");
 
   const handleDownloadPrint = (dataUrl: string) => {
     const a = document.createElement("a");
@@ -40,7 +46,7 @@ export function QRCard({
   const handlePrint = (dataUrl: string) => {
     const w = window.open("", "_blank", "width=600,height=800");
     if (!w) return;
-    
+
     w.document.write(`
       <html><head><title>${qr.label}</title>
       <style>
@@ -61,8 +67,8 @@ export function QRCard({
             <img src="${dataUrl}" />
           </div>
           <div class="table-label">${tableLabel}</div>
-          <div class="subtitle">Scan to View Menu & Order</div>
-          <div class="footer">Powered by PaperlessPlates</div>
+          <div class="subtitle">${t("qr.scanToViewMenu")}</div>
+          <div class="footer">${t("qr.poweredBy")}</div>
         </div>
         <script>window.onload=()=>window.print()</script>
       </body></html>`);
@@ -74,10 +80,12 @@ export function QRCard({
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-display text-base leading-tight">{qr.label}</p>
-          <p className="text-xs text-muted-foreground">{qr.type} • {qr.scans} scans</p>
+          <p className="text-xs text-muted-foreground">
+            {t(`orderType.${qr.type.toUpperCase()}`)} • {qr.scans} {t("qr.scans")}
+          </p>
         </div>
         <Badge className={qr.active ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}>
-          {qr.active ? "Active" : "Inactive"}
+          {qr.active ? t("status.active") : t("status.inactive")}
         </Badge>
       </div>
       <div className="my-4 -m-4 overflow-hidden opacity-0 pointer-events-none absolute">
@@ -92,7 +100,7 @@ export function QRCard({
         {qr.qrImageUrl ? (
           <img
             src={qr.qrImageUrl}
-            alt={`QR code for ${qr.label}`}
+            alt={t("qr.imageAlt", { label: qr.label })}
             className="rounded-xl bg-white"
             width={140}
             height={140}
@@ -103,41 +111,56 @@ export function QRCard({
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-          <Eye className="mr-1.5 h-3.5 w-3.5" /> Preview
+          <Eye className="mr-1.5 h-3.5 w-3.5" /> {t("qr.preview")}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm"><Download className="mr-1.5 h-3.5 w-3.5" /> Download</Button>
+            <Button variant="outline" size="sm">
+              <Download className="mr-1.5 h-3.5 w-3.5" /> {t("qr.download")}
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => {
-              if (printDataUrl) {
-                handleDownloadPrint(printDataUrl);
-              } else {
-                toast.error("QR design not ready yet");
-              }
-            }}>
-              PNG (Print Design)
+            <DropdownMenuItem
+              onClick={() => {
+                if (printDataUrl) {
+                  handleDownloadPrint(printDataUrl);
+                } else {
+                  toast.error(t("qr.designNotReady"));
+                }
+              }}
+            >
+              {t("qr.pngPrintDesign")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => downloadQRSvg(qr.url, qr.label)}>SVG</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => downloadQRSvg(qr.url, qr.label)}>{t("qr.svg")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" size="sm" onClick={() => {
-          if (printDataUrl) {
-            handlePrint(printDataUrl);
-          } else {
-            toast.error("QR design not ready yet");
-          }
-        }}>
-          <Printer className="mr-1.5 h-3.5 w-3.5" /> Print
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (printDataUrl) {
+              handlePrint(printDataUrl);
+            } else {
+              toast.error(t("qr.designNotReady"));
+            }
+          }}
+        >
+          <Printer className="mr-1.5 h-3.5 w-3.5" /> {t("qr.print")}
         </Button>
-        <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(qr.url); toast.success("URL copied"); }}>
-          <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy URL
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            navigator.clipboard.writeText(qr.url);
+            toast.success(t("qr.urlCopied"));
+          }}
+        >
+          <Copy className="mr-1.5 h-3.5 w-3.5" /> {t("qr.copyUrl")}
         </Button>
       </div>
       <Button variant="ghost" size="sm" className="mt-2 text-destructive" onClick={() => onToggle(qr.id)}>
         <Power className="mr-1.5 h-3.5 w-3.5" />
-        {qr.active ? "Deactivate" : "Activate"}
+        {qr.active ? t("qr.deactivate") : t("qr.activate")}
       </Button>
       <QRPreviewDialog qr={qr} open={open} onOpenChange={setOpen} />
     </Card>

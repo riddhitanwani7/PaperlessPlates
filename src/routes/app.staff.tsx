@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "@/components/app/AppLayout";
 import { RoleGuard } from "@/components/app/RoleGuard";
 import { Card } from "@/components/ui/card";
@@ -41,6 +42,7 @@ export const Route = createFileRoute("/app/staff")({
 });
 
 function StaffPage() {
+  const { t } = useTranslation();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -62,7 +64,7 @@ function StaffPage() {
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch staff:", error);
-      toast.error("Failed to load staff");
+      toast.error(t("staff.loadFailed"));
       setLoading(false);
     }
   }
@@ -74,13 +76,13 @@ function StaffPage() {
       const token = auth.getToken();
       if (!token) return;
       const result = await addStaffApi(token, addStaffData);
-      toast.success(`Staff added. Temporary password: ${result.temporaryPassword}`);
+      toast.success(t("staff.addedWithTempPassword", { password: result.temporaryPassword }));
       setAddDialogOpen(false);
       setAddStaffData({ name: "", email: "", role: "MANAGER", password: "" });
       fetchStaff();
     } catch (error) {
       console.error("Failed to add staff:", error);
-      toast.error("Failed to add staff");
+      toast.error(t("staff.addFailed"));
     } finally {
       setAddingStaff(false);
     }
@@ -91,11 +93,11 @@ function StaffPage() {
       const token = auth.getToken();
       if (!token) return;
       await updateStaffRoleApi(token, staffId, newRole);
-      toast.success("Staff role updated");
+      toast.success(t("staff.roleUpdated"));
       fetchStaff();
     } catch (error) {
       console.error("Failed to update role:", error);
-      toast.error("Failed to update role");
+      toast.error(t("staff.updateRoleFailed"));
     }
   }
 
@@ -104,11 +106,11 @@ function StaffPage() {
       const token = auth.getToken();
       if (!token) return;
       await deactivateStaffApi(token, staffId);
-      toast.success("Staff deactivated");
+      toast.success(t("staff.deactivated"));
       fetchStaff();
     } catch (error) {
       console.error("Failed to deactivate staff:", error);
-      toast.error("Failed to deactivate staff");
+      toast.error(t("staff.deactivateFailed"));
     }
   }
 
@@ -117,11 +119,11 @@ function StaffPage() {
       const token = auth.getToken();
       if (!token) return;
       await activateStaffApi(token, staffId);
-      toast.success("Staff activated");
+      toast.success(t("staff.activated"));
       fetchStaff();
     } catch (error) {
       console.error("Failed to activate staff:", error);
-      toast.error("Failed to activate staff");
+      toast.error(t("staff.activateFailed"));
     }
   }
 
@@ -133,8 +135,8 @@ function StaffPage() {
     return (
       <>
         <PageHeader
-          title="Staff Management"
-          description="Manage your restaurant staff and their roles"
+          title={t("staff.title")}
+          description={t("staff.description")}
         />
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -146,27 +148,30 @@ function StaffPage() {
   return (
     <>
       <PageHeader
-        title="Staff Management"
-        description="Manage your restaurant staff and their roles"
+        title={t("staff.title")}
+        description={t("staff.description")}
         actions={
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
               <Button disabled={!canAddStaff}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Staff
+                {t("staff.addStaff")}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Staff Member</DialogTitle>
-                <DialogDescription>
-                  Create a new staff account. A temporary password will be generated.
-                </DialogDescription>
+                <DialogTitle>{t("staff.addDialogTitle")}</DialogTitle>
+                <DialogDescription>{t("staff.addDialogDescription")}</DialogDescription>
                 {!canAddStaff && (
                   <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
                     <div className="flex items-center gap-2">
                       <Lock className="h-4 w-4" />
-                      {limitCheck.message}
+                      {t("limits.resourceLimit", {
+                        plan: restaurant?.selectedPlan ?? "STARTER",
+                        limit: limitCheck.limit,
+                        resource: t("staff.resourceLabel"),
+                        upgrade: t("subscription.enterprise"),
+                      })}
                     </div>
                   </div>
                 )}
@@ -174,7 +179,7 @@ function StaffPage() {
               <form onSubmit={handleAddStaff}>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
+                    <Label htmlFor="name">{t("forms.name")}</Label>
                     <Input
                       id="name"
                       value={addStaffData.name}
@@ -183,7 +188,7 @@ function StaffPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t("forms.email")}</Label>
                     <Input
                       id="email"
                       type="email"
@@ -193,7 +198,7 @@ function StaffPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
+                    <Label htmlFor="role">{t("forms.role")}</Label>
                     <Select
                       value={addStaffData.role}
                       onValueChange={(value) => setAddStaffData({ ...addStaffData, role: value as any })}
@@ -202,30 +207,30 @@ function StaffPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="MANAGER">Manager</SelectItem>
-                        <SelectItem value="KITCHEN">Kitchen</SelectItem>
-                        <SelectItem value="WAITER">Waiter</SelectItem>
+                        <SelectItem value="MANAGER">{t("staff.roles.manager")}</SelectItem>
+                        <SelectItem value="KITCHEN">{t("staff.roles.kitchen")}</SelectItem>
+                        <SelectItem value="WAITER">{t("staff.roles.waiter")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password (optional)</Label>
+                    <Label htmlFor="password">{t("staff.passwordOptional")}</Label>
                     <Input
                       id="password"
                       type="password"
                       value={addStaffData.password}
                       onChange={(e) => setAddStaffData({ ...addStaffData, password: e.target.value })}
-                      placeholder="Leave empty to auto-generate"
+                      placeholder={t("staff.passwordPlaceholder")}
                     />
                   </div>
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)}>
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
                   <Button type="submit" disabled={addingStaff}>
                     {addingStaff && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Add Staff
+                    {t("staff.addStaff")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -237,7 +242,7 @@ function StaffPage() {
       <Card className="rounded-2xl shadow-card">
         <div className="divide-y divide-border">
           {staff.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">No staff members yet</div>
+            <div className="py-12 text-center text-muted-foreground">{t("staff.empty")}</div>
           ) : (
             staff.map((member) => (
               <div key={member.id} className="flex items-center justify-between px-6 py-4">
@@ -252,9 +257,9 @@ function StaffPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <Badge variant={member.status === "ACTIVE" ? "default" : "secondary"}>
-                    {member.status}
+                    {t(`status.${member.status.toLowerCase()}`)}
                   </Badge>
-                  <Badge variant="outline">{member.role}</Badge>
+                  <Badge variant="outline">{t(`staff.roles.${member.role.toLowerCase()}`)}</Badge>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
@@ -265,22 +270,22 @@ function StaffPage() {
                       {member.status === "ACTIVE" ? (
                         <DropdownMenuItem onClick={() => handleDeactivate(member.id)}>
                           <UserX className="mr-2 h-4 w-4" />
-                          Deactivate
+                          {t("staff.deactivate")}
                         </DropdownMenuItem>
                       ) : (
                         <DropdownMenuItem onClick={() => handleActivate(member.id)}>
                           <UserCheck className="mr-2 h-4 w-4" />
-                          Activate
+                          {t("staff.activate")}
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem onClick={() => handleUpdateRole(member.id, "MANAGER")}>
-                        Set as Manager
+                        {t("staff.setAsManager")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleUpdateRole(member.id, "KITCHEN")}>
-                        Set as Kitchen
+                        {t("staff.setAsKitchen")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleUpdateRole(member.id, "WAITER")}>
-                        Set as Waiter
+                        {t("staff.setAsWaiter")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

@@ -173,7 +173,7 @@ function Sidebar({ role, mobileOpen, onClose }: { role: Role; mobileOpen: boolea
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-coral text-primary-foreground font-bold">P</div>
             <span className="font-display text-lg">PaperlessPlates</span>
           </Link>
-          <button className="lg:hidden text-muted-foreground" onClick={onClose} aria-label="Close menu">
+          <button className="lg:hidden text-muted-foreground" onClick={onClose} aria-label={t("ui.closeMenu")}>
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -202,7 +202,7 @@ function Sidebar({ role, mobileOpen, onClose }: { role: Role; mobileOpen: boolea
         <div className="absolute inset-x-3 bottom-3 rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground">
           <p className="font-medium text-foreground">{restaurant?.selectedPlan ?? "—"}</p>
           <p className="mt-1">
-            {t("nav.dashboard")}: <span className="font-medium text-foreground">{role}</span>
+            {t("ui.role")}: <span className="font-medium text-foreground">{role}</span>
           </p>
         </div>
       </aside>
@@ -227,7 +227,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur sm:px-8">
       <div className="flex items-center gap-3">
-        <button className="lg:hidden" onClick={onMenu} aria-label="Open menu">
+        <button className="lg:hidden" onClick={onMenu} aria-label={t("ui.openMenu")}>
           <MenuIcon className="h-5 w-5" />
         </button>
         <Button variant="ghost" size="sm" className="gap-2" asChild>
@@ -238,7 +238,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
         </Button>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" aria-label="Notifications" className="relative">
+        <Button variant="ghost" size="icon" aria-label={t("ui.notifications")} className="relative">
           <Bell className="h-4 w-4" />
           <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary" />
         </Button>
@@ -251,7 +251,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>{user?.email ?? "Signed in"}</DropdownMenuLabel>
+            <DropdownMenuLabel>{user?.email ?? t("ui.signedIn")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate({ to: "/app/profile" })}>
               {t("nav.profileMenu")}
@@ -261,7 +261,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
-                    <UserCog className="mr-2 h-4 w-4" /> Dev: Switch Role
+                    <UserCog className="mr-2 h-4 w-4" /> {t("ui.devSwitchRole")}
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
                     {ROLES.map((r) => (
@@ -274,7 +274,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
                           navigate({ to: roleHome(r) });
                         }
                       }}>
-                        {r} {role === r && "(current)"}
+                        {r} {role === r && `(${t("ui.current")})`}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuSubContent>

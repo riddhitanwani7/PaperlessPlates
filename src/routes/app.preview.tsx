@@ -196,7 +196,7 @@ function PreviewPage() {
           )}
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Uses live menu, theme, language and branding from your restaurant record.
+            {t("preview.liveRestaurantData")}
           </p>
         </Card>
 
@@ -207,7 +207,7 @@ function PreviewPage() {
           {iframeSrc && ready ? (
             <iframe
               key={`${context}-${tableId}-${roomId}-${restaurant.updatedAt}`}
-              title="Customer preview"
+              title={t("preview.iframeTitle")}
               src={iframeSrc}
               className="h-[720px] w-full border-0 bg-background"
             />

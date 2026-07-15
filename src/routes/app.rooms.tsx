@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeader } from "@/components/app/AppLayout";
 import { RoleGuard } from "@/components/app/RoleGuard";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const STATUS_STYLES: Record<RoomStatus, string> = {
 };
 
 function RoomsPage() {
+  const { t } = useTranslation();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -59,7 +61,7 @@ function RoomsPage() {
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch rooms:", error);
-      toast.error("Failed to load rooms");
+      toast.error(t("rooms.loadFailed"));
       setLoading(false);
     }
   }
@@ -74,7 +76,7 @@ function RoomsPage() {
       const token = auth.getToken();
       const restaurantId = localStorage.getItem("pp_owner_restaurant_id");
       if (!token || !restaurantId) {
-        toast.error("Authentication required");
+        toast.error(t("rooms.authRequired"));
         return;
       }
 
@@ -82,7 +84,7 @@ function RoomsPage() {
         // Update existing room
         const { room: updatedRoom } = await updateRoomApi(token, editing.id, data);
         setRooms(rooms.map((r) => (r.id === editing.id ? updatedRoom : r)));
-        toast.success("Room updated successfully");
+        toast.success(t("rooms.updated"));
       } else {
         // Create new room
         const { room: newRoom } = await createRoomApi(token, {
@@ -90,46 +92,53 @@ function RoomsPage() {
           ...data,
         });
         setRooms([...rooms, newRoom]);
-        toast.success("Room added successfully");
+        toast.success(t("rooms.added"));
       }
 
       setOpen(false);
       setEditing(null);
     } catch (error) {
       console.error("Failed to save room:", error);
-      toast.error("Failed to save room");
+      toast.error(t("rooms.saveFailed"));
     } finally {
       setSubmitting(false);
     }
   }
 
   async function handleDelete(roomId: string) {
-    if (!confirm("Are you sure you want to delete this room?")) return;
+    if (!confirm(t("rooms.deleteConfirm"))) return;
 
     try {
       const token = auth.getToken();
       if (!token) {
-        toast.error("Authentication required");
+        toast.error(t("rooms.authRequired"));
         return;
       }
 
       await deleteRoomApi(token, roomId);
       setRooms(rooms.filter((r) => r.id !== roomId));
-      toast.success("Room deleted successfully");
+      toast.success(t("rooms.deleted"));
     } catch (error) {
       console.error("Failed to delete room:", error);
-      toast.error("Failed to delete room");
+      toast.error(t("rooms.deleteFailed"));
     }
   }
+
+  const limitMessage = t("limits.resourceLimit", {
+    plan: restaurant?.selectedPlan ?? "STARTER",
+    limit: limitCheck.limit,
+    resource: t("rooms.resourceLabel"),
+    upgrade: t("subscription.enterprise"),
+  });
 
   return (
     <>
       <PageHeader
-        title="Rooms"
-        description="Hotel room ordering. Manage rooms, occupancy and assigned QR codes."
+        title={t("rooms.title")}
+        description={t("rooms.description")}
         actions={
           <Button className="bg-gradient-coral" disabled={!canAddRoom} onClick={() => { setEditing(null); setOpen(true); }}>
-            <Plus className="mr-1.5 h-4 w-4" /> Add room
+            <Plus className="mr-1.5 h-4 w-4" /> {t("rooms.addRoom")}
           </Button>
         }
       />
@@ -137,7 +146,7 @@ function RoomsPage() {
         <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
           <div className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
-            {limitCheck.message}
+            {limitMessage}
           </div>
         </div>
       )}
@@ -147,24 +156,24 @@ function RoomsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {rooms.map((r) => (
-            <Card key={r.id} className="rounded-2xl p-4 shadow-card">
+          {rooms.map((room) => (
+            <Card key={room.id} className="rounded-2xl p-4 shadow-card">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-display text-xl">Room {r.roomNumber}</p>
-                  <p className="text-xs text-muted-foreground"><BedDouble className="mr-1 inline h-3 w-3" />Floor {r.floor}</p>
+                  <p className="font-display text-xl">{t("rooms.roomPrefix", { number: room.roomNumber })}</p>
+                  <p className="text-xs text-muted-foreground"><BedDouble className="mr-1 inline h-3 w-3" />{t("rooms.floorPrefix", { floor: room.floor })}</p>
                 </div>
-                <Badge className={`border-0 ${STATUS_STYLES[r.status]}`}>{r.status}</Badge>
+                <Badge className={`border-0 ${STATUS_STYLES[room.status]}`}>{t(`status.${room.status.toLowerCase()}`)}</Badge>
               </div>
               <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <QrCode className="h-3.5 w-3.5" />
-                {r.qrAssigned ? "QR assigned" : "No QR"}
+                {room.qrAssigned ? t("rooms.qrAssigned") : t("rooms.noQr")}
               </div>
               <div className="mt-3 flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditing(r); setOpen(true); }}>
-                  <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditing(room); setOpen(true); }}>
+                  <Pencil className="mr-1 h-3.5 w-3.5" /> {t("common.edit")}
                 </Button>
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(r.id)}>
+                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(room.id)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>

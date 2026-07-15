@@ -6,6 +6,7 @@ import {
   resetPasswordApi,
   type AuthUser,
 } from "@/lib/api/auth.api";
+import { setAppLanguage } from "@/i18n";
 import { setRole } from "@/lib/roles";
 import { getMyRestaurantApi } from "@/lib/api/restaurant.api";
 
@@ -61,6 +62,7 @@ export const auth = {
   logout() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    setAppLanguage("en");
     window.dispatchEvent(new Event("pp:auth"));
   },
 
@@ -78,6 +80,9 @@ export const auth = {
         const { restaurant } = await getMyRestaurantApi(token);
         if (restaurant?.id) {
           localStorage.setItem("pp_owner_restaurant_id", restaurant.id);
+        }
+        if (restaurant?.settings?.language) {
+          setAppLanguage(restaurant.settings.language);
         }
       } catch (error) {
         console.error("Failed to load restaurant on login:", error);
@@ -132,6 +137,9 @@ export const auth = {
         const { restaurant } = await getMyRestaurantApi(token);
         if (restaurant?.id) {
           localStorage.setItem("pp_owner_restaurant_id", restaurant.id);
+        }
+        if (restaurant?.settings?.language) {
+          setAppLanguage(restaurant.settings.language);
         }
       } catch (error) {
         console.error("Failed to load restaurant on refresh:", error);

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 export function AuthShell({
   title,
@@ -12,6 +13,8 @@ export function AuthShell({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen bg-surface">
       <div className="mx-auto grid min-h-screen max-w-6xl grid-cols-1 lg:grid-cols-2">
@@ -24,17 +27,16 @@ export function AuthShell({
           </Link>
           <div className="space-y-6">
             <h2 className="font-display text-4xl leading-tight">
-              The operating system for modern restaurants & hotels.
+              {t("shell.title")}
             </h2>
             <p className="text-white/80">
-              QR ordering, kitchen displays, room service and analytics — one
-              elegant dashboard.
+              {t("shell.subtitle")}
             </p>
             <div className="grid grid-cols-3 gap-3 pt-4 text-sm">
               {[
-                ["12k+", "Restaurants"],
-                ["2.4M", "Orders/mo"],
-                ["99.99%", "Uptime"],
+                ["12k+", t("shell.restaurants")],
+                ["2.4M", t("shell.orders")],
+                ["99.99%", t("shell.uptime")],
               ].map(([v, l]) => (
                 <div key={l} className="rounded-xl bg-white/10 p-3 backdrop-blur">
                   <div className="font-display text-2xl">{v}</div>
@@ -43,7 +45,7 @@ export function AuthShell({
               ))}
             </div>
           </div>
-          <p className="text-xs text-white/60">© 2026 PaperlessPlates Inc.</p>
+          <p className="text-xs text-white/60">{t("shell.copyright")}</p>
         </aside>
         <main className="flex items-center justify-center p-6 sm:p-12">
           <div className="w-full max-w-md">
