@@ -157,11 +157,11 @@ function CheckoutPage() {
 
   method: {
     upi: true,
-    card: false,
-    netbanking: false,
-    wallet: false,
+    card: true,
+    netbanking: true,
+    wallet: true,
     emi: false,
-    paylater: false
+    paylater: true,
   },
 
   handler: async (response: any) => {

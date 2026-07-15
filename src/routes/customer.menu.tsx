@@ -9,13 +9,15 @@ import { PopularStrip } from "@/components/customer/PopularStrip";
 import { ApiError } from "@/lib/api/client";
 import { getPublicMenuApi, getPublicRestaurantApi } from "@/lib/api/public.api";
 import type { MenuItemRecord } from "@/lib/types/menu";
-import { getRestaurantSlug } from "@/lib/restaurantSlug";
 import { useFavorites, useRecent } from "@/lib/personalization";
 import { applyThemeToElement } from "@/lib/restaurantTheme";
 import { Loader2 } from "lucide-react";
 
 const searchSchema = z.object({
   slug: z.string().optional(),
+  table: z.string().optional(),
+  room: z.string().optional(),
+  takeaway: z.literal("true").optional(),
 });
 
 export const Route = createFileRoute("/customer/menu")({
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/customer/menu")({
 
 function MenuPage() {
   const { slug: searchSlug } = Route.useSearch();
-  const slug = getRestaurantSlug(searchSlug);
+  const slug = searchSlug ?? "";
   const [search, setSearch] = useState("");
   const [active, setActive] = useState("All");
   const [items, setItems] = useState<MenuItemRecord[]>([]);
@@ -46,18 +48,16 @@ function MenuPage() {
       try {
         // Load restaurant theme first
         const { restaurant } = await getPublicRestaurantApi(slug);
-        if (restaurant?.theme && !cancelled) {
-          applyThemeToElement(document.documentElement, restaurant.theme);
-          localStorage.setItem("pp_customer_restaurant_info", JSON.stringify({
-            restaurantName: restaurant.restaurantName,
-            description: restaurant.description,
-            logoUrl: restaurant.logoUrl,
-            theme: restaurant.theme,
-            settings: restaurant.settings,
-            onlinePaymentsEnabled: restaurant.onlinePaymentsEnabled,
-          }));
+        if (!cancelled) {
+          if (restaurant.theme) {
+            applyThemeToElement(document.documentElement, restaurant.theme);
+          }
+
+          // This value comes from the current QR URL's public lookup, not a
+          // previously visited restaurant or a fallback value.
+          localStorage.setItem("pp_customer_restaurant_id", restaurant.id);
         }
-        
+
         // Then load menu items
         const { items: menuItems } = await getPublicMenuApi(slug);
         if (!cancelled) setItems(menuItems);

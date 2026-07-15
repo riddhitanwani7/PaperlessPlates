@@ -34,6 +34,11 @@ const paymentStatusStyles: Record<string, string> = {
   REFUNDED: "bg-gray-100 text-gray-800",
 };
 
+const inrFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+});
+
 function OrdersPage() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>("PENDING");
@@ -209,7 +214,7 @@ function OrdersPage() {
                       {order.items.map((item, index) => (
                         <div key={index} className="flex justify-between text-sm">
                           <span>{item.quantity}× {item.name}</span>
-                          <span className="text-muted-foreground">${(item.price * item.quantity).toFixed(2)}</span>
+                          <span className="text-muted-foreground">{inrFormatter.format(item.price * item.quantity)}</span>
                         </div>
                       ))}
                     </div>
@@ -221,7 +226,7 @@ function OrdersPage() {
                     )}
                     <div className="mt-3 pt-3 border-t border-border flex justify-between font-semibold">
                       <span>{t("orders.total")}</span>
-                      <span>${order.total.toFixed(2)}</span>
+                      <span>{inrFormatter.format(order.total)}</span>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 sm:ml-4">

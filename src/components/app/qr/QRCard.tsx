@@ -8,6 +8,7 @@ import { QRImage, downloadQRSvg } from "./QRImage";
 import { Eye, Download, Printer, Copy, Power } from "lucide-react";
 import { QRPreviewDialog } from "./QRPreviewDialog";
 import { QRPrintDesign } from "./QRPrintDesign";
+import { getCustomerOrderingUrl } from "@/lib/customerOrderingUrl";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -26,6 +27,7 @@ export function QRCard({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [printDataUrl, setPrintDataUrl] = useState<string | null>(null);
+  const customerOrderingUrl = getCustomerOrderingUrl(qr);
 
   const tableLabel =
     qr.type === "Table"
@@ -92,22 +94,15 @@ export function QRCard({
         <QRPrintDesign
           restaurantName={qr.label}
           tableLabel={tableLabel}
-          qrUrl={qr.url}
+          qrUrl={customerOrderingUrl}
           onImageGenerated={setPrintDataUrl}
         />
       </div>
       <div className="my-4 grid place-items-center rounded-xl bg-muted p-4">
-        {qr.qrImageUrl ? (
-          <img
-            src={qr.qrImageUrl}
-            alt={t("qr.imageAlt", { label: qr.label })}
-            className="rounded-xl bg-white"
-            width={140}
-            height={140}
-          />
-        ) : (
-          <QRImage value={qr.url} size={140} />
-        )}
+        <QRImage
+          value={customerOrderingUrl}
+          size={140}
+        />
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
@@ -131,7 +126,7 @@ export function QRCard({
             >
               {t("qr.pngPrintDesign")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => downloadQRSvg(qr.url, qr.label)}>{t("qr.svg")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => downloadQRSvg(customerOrderingUrl, qr.label)}>{t("qr.svg")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button
@@ -151,7 +146,7 @@ export function QRCard({
           variant="outline"
           size="sm"
           onClick={() => {
-            navigator.clipboard.writeText(qr.url);
+            navigator.clipboard.writeText(customerOrderingUrl);
             toast.success(t("qr.urlCopied"));
           }}
         >
@@ -162,7 +157,7 @@ export function QRCard({
         <Power className="mr-1.5 h-3.5 w-3.5" />
         {qr.active ? t("qr.deactivate") : t("qr.activate")}
       </Button>
-      <QRPreviewDialog qr={qr} open={open} onOpenChange={setOpen} />
+      <QRPreviewDialog qr={qr} qrUrl={customerOrderingUrl} open={open} onOpenChange={setOpen} />
     </Card>
   );
 }

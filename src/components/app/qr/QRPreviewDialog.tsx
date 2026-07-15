@@ -4,10 +4,12 @@ import type { QREntity } from "@/lib/types/qr";
 
 export function QRPreviewDialog({
   qr,
+  qrUrl,
   open,
   onOpenChange,
 }: {
   qr: QREntity;
+  qrUrl: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
@@ -26,7 +28,7 @@ export function QRPreviewDialog({
           <QRPrintDesign
             restaurantName={qr.label}
             tableLabel={tableLabel}
-            qrUrl={qr.url}
+            qrUrl={qrUrl}
             onImageGenerated={() => {}}
           />
         </div>

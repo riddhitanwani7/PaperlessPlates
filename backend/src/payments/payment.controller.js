@@ -141,7 +141,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    data: order,
+    data: { order },
   });
 });
 

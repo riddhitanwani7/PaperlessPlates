@@ -4,16 +4,14 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
-  HeadContent,
-  Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import "@/i18n";
 import { useTranslation } from "react-i18next";
 
-import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { setContext, type QRContext } from "@/lib/tableContext";
 
 function NotFoundComponent() {
   const { t } = useTranslation();
@@ -43,9 +41,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   const { t } = useTranslation();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -79,66 +74,70 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-    ],
-    links: [
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap",
-      },
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-    ],
-    scripts: [
-      {
-        src: "https://checkout.razorpay.com/v1/checkout.js",
-        async: true,
-      },
-    ],
-  }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
-
-function RootShell({ children }: { children: ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <CustomerContextPreserver />
       <Outlet />
       <Toaster />
     </QueryClientProvider>
   );
+}
+
+type CustomerRouteContext = {
+  slug: string;
+  table?: string;
+  room?: string;
+  takeaway?: "true";
+};
+
+function CustomerContextPreserver() {
+  const router = useRouter();
+  const location = useRouterState({ select: (state) => state.location });
+  const contextRef = useRef<CustomerRouteContext | null>(null);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith("/customer/")) return;
+
+    const search = new URLSearchParams(location.searchStr);
+    const slug = search.get("slug");
+
+    if (slug) {
+      const context: CustomerRouteContext = {
+        slug,
+        table: search.get("table") ?? undefined,
+        room: search.get("room") ?? undefined,
+        takeaway: search.get("takeaway") === "true" ? "true" : undefined,
+      };
+
+      contextRef.current = context;
+
+      const qrContext: QRContext = context.table
+        ? { type: "TABLE", tableId: context.table }
+        : context.room
+          ? { type: "ROOM", roomId: context.room }
+          : context.takeaway
+            ? { type: "TAKEAWAY" }
+            : { type: "RESTAURANT" };
+      setContext(qrContext);
+      return;
+    }
+
+    if (!contextRef.current) return;
+
+    router.navigate({
+      to: location.pathname as never,
+      search: contextRef.current,
+      replace: true,
+    });
+  }, [location.pathname, location.searchStr, router]);
+
+  return null;
 }
