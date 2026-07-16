@@ -3,30 +3,25 @@ import crypto from "crypto";
 import { AppError } from "../utils/AppError.js";
 import { decrypt } from "../utils/encryption.js";
 
-console.log("Global Razorpay Key ID:", process.env.RAZORPAY_KEY_ID ? "Loaded" : "Missing");
-console.log("Global Razorpay Key Secret:", process.env.RAZORPAY_KEY_SECRET ? "Loaded" : "Missing");
-console.log("Global Razorpay Webhook Secret:", process.env.RAZORPAY_WEBHOOK_SECRET ? "Loaded" : "Missing");
+function getRestaurantKeySecret(settings) {
+  if (settings?.provider !== "razorpay" || !settings.keyId || !settings.encryptedKeySecret) {
+    throw new AppError("Razorpay is not configured for this restaurant", 400);
+  }
+
+  const keySecret = decrypt(settings.encryptedKeySecret);
+  if (!keySecret) {
+    throw new AppError("Razorpay secret key is not configured for this restaurant", 400);
+  }
+
+  return keySecret;
+}
 
 export function getRazorpayClient(settings) {
-  if (settings?.provider === "razorpay" && settings.keyId && settings.encryptedKeySecret) {
-    const keySecret = decrypt(settings.encryptedKeySecret);
-    if (keySecret) {
-      return new Razorpay({
-        key_id: settings.keyId,
-        key_secret: keySecret,
-      });
-    }
-  }
-
-  // Fallback to global env credentials
-  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-    return new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
-  }
-
-  throw new AppError("Razorpay credentials not configured", 400);
+  const keySecret = getRestaurantKeySecret(settings);
+  return new Razorpay({
+    key_id: settings.keyId,
+    key_secret: keySecret,
+  });
 }
 
 export async function createRazorpayOrder(amount, currency = "INR", receipt, settings) {
@@ -48,6 +43,10 @@ export async function createRazorpayOrder(amount, currency = "INR", receipt, set
 
     return order;
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
     console.error("========== RAZORPAY ERROR ==========");
     console.error(error);
     console.error(error.error);
@@ -59,16 +58,7 @@ export async function createRazorpayOrder(amount, currency = "INR", receipt, set
 }
 
 export function verifyPaymentSignature(orderId, paymentId, signature, settings) {
-  let keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (settings?.provider === "razorpay" && settings.encryptedKeySecret) {
-    const decrypted = decrypt(settings.encryptedKeySecret);
-    if (decrypted) keySecret = decrypted;
-  }
-
-  if (!keySecret) {
-    throw new AppError("Razorpay secret key not found for verification", 400);
-  }
+  const keySecret = getRestaurantKeySecret(settings);
 
   const generatedSignature = crypto
     .createHmac("sha256", keySecret)
@@ -79,15 +69,14 @@ export function verifyPaymentSignature(orderId, paymentId, signature, settings) 
 }
 
 export function verifyWebhookSignature(body, signature, settings) {
-  let webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-
-  if (settings?.provider === "razorpay" && settings.encryptedWebhookSecret) {
-    const decrypted = decrypt(settings.encryptedWebhookSecret);
-    if (decrypted) webhookSecret = decrypted;
+  if (settings?.provider !== "razorpay" || !settings.encryptedWebhookSecret) {
+    throw new AppError("Razorpay webhook secret is not configured for this restaurant", 400);
   }
 
+  const webhookSecret = decrypt(settings.encryptedWebhookSecret);
+
   if (!webhookSecret) {
-    throw new AppError("Razorpay webhook secret not found for verification", 400);
+    throw new AppError("Razorpay webhook secret is not configured for this restaurant", 400);
   }
 
   const expectedSignature = crypto

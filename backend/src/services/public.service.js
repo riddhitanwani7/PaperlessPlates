@@ -30,9 +30,9 @@ export async function getPublicRestaurantBySlug(slug) {
     menuFileType: restaurant.menuFileType || null,
     menuMode: restaurant.menuMode || "DOCUMENT",
     slug: restaurant.slug,
-    onlinePaymentsEnabled: restaurant.paymentSettings?.provider
-      ? (restaurant.paymentSettings.paymentsEnabled && !!(restaurant.paymentSettings.keyId && restaurant.paymentSettings.encryptedKeySecret))
-      : !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+    onlinePaymentsEnabled: restaurant.paymentSettings?.provider === "razorpay"
+      && restaurant.paymentSettings.paymentsEnabled
+      && !!(restaurant.paymentSettings.keyId && restaurant.paymentSettings.encryptedKeySecret),
     theme: {
       primaryColor: restaurant.theme?.primaryColor || "#f97316",
       secondaryColor: restaurant.theme?.secondaryColor || "#1e293b",
