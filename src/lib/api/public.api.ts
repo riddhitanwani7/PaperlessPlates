@@ -13,6 +13,8 @@ export type PublicRestaurant = {
   menuFileType: MenuFileType | null;
   menuMode: "DOCUMENT" | "DIGITAL";
   slug: string;
+  qrCodeId: string;
+  orderContext: { type: "TABLE" | "ROOM" | "TAKEAWAY" | "RESTAURANT"; tableId?: string; roomId?: string };
   onlinePaymentsEnabled?: boolean;
   theme: {
     primaryColor: string;
@@ -36,8 +38,8 @@ export type PublicCategory = {
   sortOrder: number;
 };
 
-export function getPublicRestaurantApi(slug: string) {
-  return apiRequest<{ restaurant: PublicRestaurant }>(`/public/restaurant/${slug}`);
+export function getPublicRestaurantApi(slug: string, qrCodeId: string) {
+  return apiRequest<{ restaurant: PublicRestaurant }>(`/public/restaurant/${slug}?qr=${encodeURIComponent(qrCodeId)}`);
 }
 
 export function recordScanApi(slug: string) {
@@ -47,14 +49,14 @@ export function recordScanApi(slug: string) {
   );
 }
 
-export function getPublicCategoriesApi(slug: string) {
-  return apiRequest<{ categories: PublicCategory[] }>(`/public/restaurant/${slug}/categories`);
+export function getPublicCategoriesApi(slug: string, qrCodeId: string) {
+  return apiRequest<{ categories: PublicCategory[] }>(`/public/restaurant/${slug}/categories?qr=${encodeURIComponent(qrCodeId)}`);
 }
 
-export function getPublicMenuApi(slug: string) {
-  return apiRequest<{ items: MenuItemRecord[] }>(`/public/restaurant/${slug}/menu`);
+export function getPublicMenuApi(slug: string, qrCodeId: string) {
+  return apiRequest<{ items: MenuItemRecord[] }>(`/public/restaurant/${slug}/menu?qr=${encodeURIComponent(qrCodeId)}`);
 }
 
-export function getPublicMenuItemApi(id: string) {
-  return apiRequest<{ item: MenuItemRecord }>(`/public/menu-item/${id}`);
+export function getPublicMenuItemApi(id: string, qrCodeId: string) {
+  return apiRequest<{ item: MenuItemRecord }>(`/public/menu-item/${id}?qr=${encodeURIComponent(qrCodeId)}`);
 }

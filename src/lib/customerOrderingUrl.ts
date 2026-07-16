@@ -4,6 +4,7 @@ export function getCustomerOrderingUrl(qr: QREntity) {
   const url = new URL("/customer/menu", window.location.origin);
 
   url.searchParams.set("slug", qr.slug);
+  url.searchParams.set("qr", qr.id);
 
   if (qr.type === "Table" && qr.tableId) {
     url.searchParams.set("table", qr.tableId);

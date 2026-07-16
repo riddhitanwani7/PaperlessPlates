@@ -185,8 +185,8 @@ export async function deleteMenuItem(ownerId, itemId) {
   return { message: "Menu item deleted successfully" };
 }
 
-export async function getPublicMenuItemById(itemId) {
-  const item = await MenuItem.findById(itemId);
+export async function getPublicMenuItemById(itemId, restaurantId) {
+  const item = await MenuItem.findOne({ _id: itemId, restaurantId });
 
   if (!item || !item.available) {
     throw new AppError("Menu item not found", 404);

@@ -96,6 +96,7 @@ type CustomerRouteContext = {
   table?: string;
   room?: string;
   takeaway?: "true";
+  qr?: string;
 };
 
 function CustomerContextPreserver() {
@@ -115,18 +116,23 @@ function CustomerContextPreserver() {
         table: search.get("table") ?? undefined,
         room: search.get("room") ?? undefined,
         takeaway: search.get("takeaway") === "true" ? "true" : undefined,
+        qr: search.get("qr") ?? undefined,
       };
 
       contextRef.current = context;
 
-      const qrContext: QRContext = context.table
-        ? { type: "TABLE", tableId: context.table }
-        : context.room
-          ? { type: "ROOM", roomId: context.room }
-          : context.takeaway
-            ? { type: "TAKEAWAY" }
-            : { type: "RESTAURANT" };
-      setContext(qrContext);
+      // The server validates this opaque QR ID and derives the table/room.
+      // Query-string labels are only retained for legacy navigation display.
+      if (context.qr) {
+        const qrContext: QRContext = context.table
+          ? { type: "TABLE", qrCodeId: context.qr, tableId: context.table }
+          : context.room
+            ? { type: "ROOM", qrCodeId: context.qr, roomId: context.room }
+            : context.takeaway
+              ? { type: "TAKEAWAY", qrCodeId: context.qr }
+              : { type: "RESTAURANT", qrCodeId: context.qr };
+        setContext(qrContext);
+      }
       return;
     }
 

@@ -1,7 +1,8 @@
 import { Order } from "../models/Order.js";
-import { Restaurant } from "../models/Restaurant.js";
+import { MenuItem } from "../models/MenuItem.js";
 import { AppError } from "../utils/AppError.js";
 import { canCreateResource } from "./subscription.helper.js";
+import { getOrderingContext } from "./ordering-context.service.js";
 
 function sanitizeOrder(order) {
   return {
@@ -46,62 +47,54 @@ async function generateOrderNumber() {
   return `ORD-${nextNumber}`;
 }
 
-// Determine order type from QR context
-function determineOrderType(tableId, roomId) {
-  if (tableId) return "TABLE";
-  if (roomId) return "ROOM";
-  return "RESTAURANT"; // Default for now, will be TAKEAWAY if needed
-}
-
 // Start of the current calendar month (UTC), used as the monthly order window
 function startOfCurrentMonth() {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
+export async function getOrderQuote({ items, qrCodeId, restaurantId }) {
+  if (!items || items.length === 0) throw new AppError("Order must contain at least one item", 400);
+  for (const item of items) {
+    if (!item.quantity || item.quantity <= 0) throw new AppError("Item quantity must be greater than zero", 400);
+  }
+
+  const context = await getOrderingContext(qrCodeId, restaurantId);
+  const menuItemIds = items.map((item) => item.menuItemId);
+  if (menuItemIds.some((id) => !id)) throw new AppError("Invalid menu item", 400);
+
+  const menuItems = await MenuItem.find({ _id: { $in: menuItemIds }, restaurantId: context.restaurant._id, available: true });
+  if (menuItems.length !== new Set(menuItemIds.map(String)).size) {
+    throw new AppError("One or more items are unavailable for this restaurant", 400);
+  }
+
+  const menuItemById = new Map(menuItems.map((item) => [item._id.toString(), item]));
+  const validatedItems = items.map((item) => {
+    const menuItem = menuItemById.get(String(item.menuItemId));
+    return { menuItemId: menuItem._id, name: menuItem.name, price: menuItem.price, quantity: item.quantity, notes: item.notes };
+  });
+  const subtotal = validatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const tax = +(subtotal * 0.08).toFixed(2);
+  return { context, validatedItems, subtotal, tax, total: +(subtotal + tax).toFixed(2) };
+}
+
 export async function createOrder(orderData) {
-  const { restaurantId, customerSessionId, items, paymentMethod, tableId, roomId, notes, orderType } = orderData;
+  const { restaurantId, customerSessionId, items, paymentMethod, tableId, roomId, notes, orderType, qrCodeId } = orderData;
 
   // Validate input
-  if (!restaurantId) {
-    throw new AppError("Restaurant ID is required", 400);
-  }
   if (!customerSessionId) {
     throw new AppError("Customer session ID is required", 400);
   }
-  if (!items || items.length === 0) {
-    throw new AppError("Order must contain at least one item", 400);
-  }
-  
-  // Validate quantities
-  for (const item of items) {
-    if (!item.quantity || item.quantity <= 0) {
-      throw new AppError("Item quantity must be greater than zero", 400);
-    }
-  }
-
-  // Verify restaurant exists
-  const restaurant = await Restaurant.findById(restaurantId);
-  if (!restaurant) {
-    throw new AppError("Restaurant not found", 404);
-  }
-
-  // orderType is required - must come from QR context
-  if (!orderType) {
-    throw new AppError("Order type is required. Please scan a QR code to begin ordering.", 400);
-  }
-
-  // Validate orderType matches the context
-  if (orderType === "TABLE" && !tableId) {
-    throw new AppError("Table ID is required for table orders", 400);
-  }
-  if (orderType === "ROOM" && !roomId) {
-    throw new AppError("Room ID is required for room orders", 400);
+  const quote = await getOrderQuote({ items, qrCodeId, restaurantId });
+  const { context, validatedItems, subtotal, tax, total } = quote;
+  const restaurant = context.restaurant;
+  if ((orderType && orderType !== context.orderType) || tableId !== context.tableId || roomId !== context.roomId) {
+    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
   }
 
   // Enforce monthly order limit (Basic: 500/mo, Premium/Enterprise: unlimited)
   const ordersThisMonth = await Order.countDocuments({
-    restaurantId,
+    restaurantId: restaurant._id,
     createdAt: { $gte: startOfCurrentMonth() },
   });
   const limitCheck = canCreateResource(restaurant, "ordersPerMonth", ordersThisMonth);
@@ -115,20 +108,15 @@ export async function createOrder(orderData) {
   // Generate order number
   const orderNumber = await generateOrderNumber();
 
-  // Calculate totals server-side
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = +(subtotal * 0.08).toFixed(2);
-  const total = +(subtotal + tax).toFixed(2);
-
   const order = new Order({
     orderNumber,
-    orderType,
-    restaurantId,
+    orderType: context.orderType,
+    restaurantId: restaurant._id,
     restaurantName: restaurant.restaurantName,
-    tableId,
-    roomId,
+    tableId: context.tableId,
+    roomId: context.roomId,
     customerSessionId,
-    items,
+    items: validatedItems,
     subtotal,
     tax,
     total,
@@ -183,27 +171,19 @@ export async function updateOrderPaymentStatus(orderId, paymentStatus) {
   return sanitizeOrder(order);
 }
 
-export async function getCustomerOrdersByContext({ customerSessionId, restaurantId, tableId, roomId, orderType }) {
-  // restaurantId is mandatory for restaurant isolation
-  if (!restaurantId) {
-    throw new AppError("Restaurant ID is required", 400);
+export async function getCustomerOrdersByContext({ customerSessionId, qrCodeId, restaurantId, tableId, roomId, orderType }) {
+  const context = await getOrderingContext(qrCodeId, restaurantId);
+  if ((tableId && tableId !== context.tableId) || (roomId && roomId !== context.roomId) || (orderType && orderType !== context.orderType)) {
+    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
   }
 
-  // Build query with mandatory restaurantId and customerSessionId
-  const query = { customerSessionId, restaurantId };
-  
-  if (tableId) {
-    query.tableId = tableId;
-  }
-  
-  if (roomId) {
-    query.roomId = roomId;
-  }
-  
-  if (orderType) {
-    query.orderType = orderType;
-  }
-  
+  const query = {
+    customerSessionId,
+    restaurantId: context.restaurant._id,
+    orderType: context.orderType,
+    ...(context.tableId && { tableId: context.tableId }),
+    ...(context.roomId && { roomId: context.roomId }),
+  };
   const orders = await Order.find(query).sort({ createdAt: -1 });
   return orders.map(sanitizeOrder);
 }

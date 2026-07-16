@@ -12,6 +12,7 @@ import { getPublicMenuItemApi } from "@/lib/api/public.api";
 import type { MenuItemRecord } from "@/lib/types/menu";
 import { Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { getContext } from "@/lib/tableContext";
 
 export const Route = createFileRoute("/customer/menu/item/$id")({
   component: ItemPage,
@@ -42,7 +43,9 @@ function ItemPage() {
     async function load() {
       setLoading(true);
       try {
-        const { item: data } = await getPublicMenuItemApi(id);
+        const qrCodeId = getContext()?.qrCodeId;
+        if (!qrCodeId) throw new ApiError("Invalid or expired ordering link. Please scan the QR code again.", 400);
+        const { item: data } = await getPublicMenuItemApi(id, qrCodeId);
         if (!cancelled) setItem(data);
       } catch (err) {
         if (!cancelled) {

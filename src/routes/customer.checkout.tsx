@@ -81,13 +81,14 @@ function CheckoutPage() {
 
     const restaurantId = localStorage.getItem("pp_customer_restaurant_id");
 
-    if (!restaurantId) {
-      toast.error("Restaurant information not found. Please scan the QR again.");
+    if (!restaurantId || !context?.qrCodeId) {
+      toast.error("Invalid or expired ordering link. Please scan the QR code again.");
       setLoading(false);
       return;
     }
 
     const orderData: CreateOrderRequest = {
+      qrCodeId: context.qrCodeId,
       restaurantId,
       customerSessionId,
       items: items.map((item) => ({
@@ -129,10 +130,11 @@ function CheckoutPage() {
     const receipt = `PP_${Date.now()}`;
 
     const paymentOrder = await createPaymentOrderApi({
-      amount: total,
       currency: "INR",
       receipt,
       restaurantId: restaurantId || undefined,
+      qrCodeId: context.qrCodeId,
+      items: orderData.items,
     });
 
     console.log("Payment Order:", paymentOrder);

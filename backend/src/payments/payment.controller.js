@@ -11,27 +11,37 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
   console.log("========== CREATE PAYMENT ORDER ==========");
   console.log(req.body);
 
-  const { amount, currency, receipt, restaurantId } = req.body;
+  const { currency, receipt, restaurantId, qrCodeId, items } = req.body;
 
-  if (!amount || !receipt) {
+  if (!receipt) {
     return res.status(400).json({
       success: false,
-      message: "Amount and receipt are required",
+      message: "Payment receipt is required",
     });
   }
 
-  if (!restaurantId) {
-    return res.status(400).json({
-      success: false,
-      message: "Restaurant is required for online payment",
-    });
-  }
+  const quote = await orderService.getOrderQuote({ items, qrCodeId, restaurantId });
+  const { restaurant } = quote.context;
 
-  const restaurant = await Restaurant.findById(restaurantId);
-  if (!restaurant) {
-    return res.status(404).json({
-      success: false,
-      message: "Restaurant not found",
+  const existingPayment = await RazorpayOrderMapping.findOne({
+    restaurantId: restaurant._id,
+    receipt,
+  });
+  if (existingPayment) {
+    if (!existingPayment.qrCodeId || existingPayment.qrCodeId.toString() !== quote.context.qr._id.toString()) {
+      throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
+    }
+    if (existingPayment.status === "paid") {
+      throw new AppError("Payment has already been processed", 409);
+    }
+    return res.json({
+      success: true,
+      data: {
+        key: restaurant.paymentSettings?.keyId,
+        orderId: existingPayment.razorpayOrderId,
+        amount: existingPayment.amount,
+        currency: existingPayment.currency,
+      },
     });
   }
 
@@ -53,7 +63,7 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
   const settings = restaurant.paymentSettings;
 
   const order = await paymentService.createRazorpayOrder(
-    amount,
+    quote.total,
     currency || "INR",
     receipt,
     settings
@@ -64,6 +74,7 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
   await RazorpayOrderMapping.create({
     razorpayOrderId: order.id,
     restaurantId: restaurant._id,
+    qrCodeId: quote.context.qr._id,
     amount: order.amount,
     currency: order.currency,
     receipt: receipt,
@@ -108,6 +119,10 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!mapping.qrCodeId || !orderData.qrCodeId || orderData.qrCodeId !== mapping.qrCodeId.toString()) {
+    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
+  }
+
   const restaurant = await Restaurant.findById(mapping.restaurantId);
   if (!restaurant) {
     return res.status(404).json({
@@ -117,6 +132,10 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   }
 
   const settings = restaurant.paymentSettings;
+  const quote = await orderService.getOrderQuote(orderData);
+  if (quote.context.restaurant._id.toString() !== restaurant._id.toString() || mapping.amount !== Math.round(quote.total * 100)) {
+    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
+  }
 
   const valid = paymentService.verifyPaymentSignature(
     orderId,
@@ -132,12 +151,14 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     });
   }
 
-  // Update status in mapping
-  if (orderId) {
-    await RazorpayOrderMapping.findOneAndUpdate(
-      { razorpayOrderId: orderId },
-      { status: "paid" }
-    ).catch(err => console.error("Mapping status update failed:", err));
+  // Atomically consume the Razorpay order so a replay cannot create another order.
+  const consumedPayment = await RazorpayOrderMapping.findOneAndUpdate(
+    { _id: mapping._id, status: "created" },
+    { status: "paid" },
+    { new: true },
+  );
+  if (!consumedPayment) {
+    throw new AppError("Payment has already been processed", 409);
   }
 
   const order = await orderService.createOrder({

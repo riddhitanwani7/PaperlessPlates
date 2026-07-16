@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { QREntity } from "@/lib/types/qr";
 import { Card } from "@/components/ui/card";
@@ -6,9 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QRImage, downloadQRSvg } from "./QRImage";
 import { Eye, Download, Printer, Copy, Power } from "lucide-react";
-import { QRPreviewDialog } from "./QRPreviewDialog";
 import { QRPrintDesign } from "./QRPrintDesign";
-import { getCustomerOrderingUrl } from "@/lib/customerOrderingUrl";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -17,17 +14,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function QRCard({
-  qr,
-  onToggle,
-}: {
-  qr: QREntity;
-  onToggle: (id: string) => void;
-}) {
+export function QRCard({ qr, onToggle }: { qr: QREntity; onToggle: (id: string) => void }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
   const [printDataUrl, setPrintDataUrl] = useState<string | null>(null);
-  const customerOrderingUrl = getCustomerOrderingUrl(qr);
+  // This is the immutable URL encoded when the QR was generated. Every
+  // customer-facing action must use it verbatim so the QR context is preserved.
+  const customerOrderingUrl = qr.qrUrl;
+  const downloadName = qr.label.trim().replace(/[\\/:*?"<>|]+/g, "-") || "qr-code";
 
   const tableLabel =
     qr.type === "Table"
@@ -41,16 +34,32 @@ export function QRCard({
   const handleDownloadPrint = (dataUrl: string) => {
     const a = document.createElement("a");
     a.href = dataUrl;
-    a.download = `${qr.label}-qr.png`;
+    a.download = `${downloadName}-qr.png`;
     a.click();
   };
 
   const handlePrint = (dataUrl: string) => {
     const w = window.open("", "_blank", "width=600,height=800");
-    if (!w) return;
+    if (!w) {
+      toast.error("Unable to open the print dialog. Please allow pop-ups and try again.");
+      return;
+    }
+
+    const escapeHtml = (value: string) =>
+      value.replace(
+        /[&<>'"]/g,
+        (character) =>
+          ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            "'": "&#39;",
+            '"': "&quot;",
+          })[character] as string,
+      );
 
     w.document.write(`
-      <html><head><title>${qr.label}</title>
+      <html><head><title>${escapeHtml(qr.label)}</title>
       <style>
         body { font-family: system-ui; text-align: center; padding: 40px; margin: 0; }
         .container { max-width: 400px; margin: 0 auto; }
@@ -64,13 +73,13 @@ export function QRCard({
       </head>
       <body>
         <div class="container">
-          <h1 class="restaurant-name">${qr.label.toUpperCase()}</h1>
+          <h1 class="restaurant-name">${escapeHtml(qr.label.toUpperCase())}</h1>
           <div class="qr-container">
             <img src="${dataUrl}" />
           </div>
-          <div class="table-label">${tableLabel}</div>
-          <div class="subtitle">${t("qr.scanToViewMenu")}</div>
-          <div class="footer">${t("qr.poweredBy")}</div>
+          <div class="table-label">${escapeHtml(tableLabel)}</div>
+          <div class="subtitle">${escapeHtml(t("qr.scanToViewMenu"))}</div>
+          <div class="footer">${escapeHtml(t("qr.poweredBy"))}</div>
         </div>
         <script>window.onload=()=>window.print()</script>
       </body></html>`);
@@ -86,7 +95,11 @@ export function QRCard({
             {t(`orderType.${qr.type.toUpperCase()}`)} • {qr.scans} {t("qr.scans")}
           </p>
         </div>
-        <Badge className={qr.active ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}>
+        <Badge
+          className={
+            qr.active ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+          }
+        >
           {qr.active ? t("status.active") : t("status.inactive")}
         </Badge>
       </div>
@@ -99,13 +112,18 @@ export function QRCard({
         />
       </div>
       <div className="my-4 grid place-items-center rounded-xl bg-muted p-4">
-        <QRImage
-          value={customerOrderingUrl}
-          size={140}
-        />
+        <QRImage value={customerOrderingUrl} size={140} />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (!window.open(customerOrderingUrl, "_blank", "noopener,noreferrer")) {
+              toast.error("Unable to open the preview. Please allow pop-ups and try again.");
+            }
+          }}
+        >
           <Eye className="mr-1.5 h-3.5 w-3.5" /> {t("qr.preview")}
         </Button>
         <DropdownMenu>
@@ -126,7 +144,11 @@ export function QRCard({
             >
               {t("qr.pngPrintDesign")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => downloadQRSvg(customerOrderingUrl, qr.label)}>{t("qr.svg")}</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => downloadQRSvg(customerOrderingUrl, `${downloadName}-qr`)}
+            >
+              {t("qr.svg")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button
@@ -145,19 +167,27 @@ export function QRCard({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => {
-            navigator.clipboard.writeText(customerOrderingUrl);
-            toast.success(t("qr.urlCopied"));
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(customerOrderingUrl);
+              toast.success(t("qr.urlCopied"));
+            } catch {
+              toast.error("Could not copy the QR URL. Please copy it from the QR code instead.");
+            }
           }}
         >
           <Copy className="mr-1.5 h-3.5 w-3.5" /> {t("qr.copyUrl")}
         </Button>
       </div>
-      <Button variant="ghost" size="sm" className="mt-2 text-destructive" onClick={() => onToggle(qr.id)}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="mt-2 text-destructive"
+        onClick={() => onToggle(qr.id)}
+      >
         <Power className="mr-1.5 h-3.5 w-3.5" />
         {qr.active ? t("qr.deactivate") : t("qr.activate")}
       </Button>
-      <QRPreviewDialog qr={qr} qrUrl={customerOrderingUrl} open={open} onOpenChange={setOpen} />
     </Card>
   );
 }

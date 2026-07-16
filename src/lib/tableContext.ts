@@ -3,6 +3,7 @@ const CONTEXT_EVENT = "pp:context";
 
 export type QRContext = {
   type: "TABLE" | "ROOM" | "TAKEAWAY" | "RESTAURANT";
+  qrCodeId: string;
   tableId?: string;
   roomId?: string;
 };

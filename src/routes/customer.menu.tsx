@@ -12,12 +12,14 @@ import type { MenuItemRecord } from "@/lib/types/menu";
 import { useFavorites, useRecent } from "@/lib/personalization";
 import { applyThemeToElement } from "@/lib/restaurantTheme";
 import { Loader2 } from "lucide-react";
+import { setContext } from "@/lib/tableContext";
 
 const searchSchema = z.object({
   slug: z.string().optional(),
   table: z.string().optional(),
   room: z.string().optional(),
   takeaway: z.literal("true").optional(),
+  qr: z.string().optional(),
 });
 
 export const Route = createFileRoute("/customer/menu")({
@@ -26,7 +28,7 @@ export const Route = createFileRoute("/customer/menu")({
 });
 
 function MenuPage() {
-  const { slug: searchSlug } = Route.useSearch();
+  const { slug: searchSlug, qr } = Route.useSearch();
   const slug = searchSlug ?? "";
   const [search, setSearch] = useState("");
   const [active, setActive] = useState("All");
@@ -39,7 +41,7 @@ function MenuPage() {
     let cancelled = false;
 
     async function load() {
-      if (!slug) {
+      if (!slug || !qr) {
         setLoading(false);
         return;
       }
@@ -47,11 +49,17 @@ function MenuPage() {
       setLoading(true);
       try {
         // Load restaurant theme first
-        const { restaurant } = await getPublicRestaurantApi(slug);
+        const { restaurant } = await getPublicRestaurantApi(slug, qr);
         if (!cancelled) {
           if (restaurant.theme) {
             applyThemeToElement(document.documentElement, restaurant.theme);
           }
+          setContext({
+            qrCodeId: restaurant.qrCodeId,
+            type: restaurant.orderContext.type,
+            tableId: restaurant.orderContext.tableId,
+            roomId: restaurant.orderContext.roomId,
+          });
 
           // This value comes from the current QR URL's public lookup, not a
           // previously visited restaurant or a fallback value.
@@ -59,7 +67,7 @@ function MenuPage() {
         }
 
         // Then load menu items
-        const { items: menuItems } = await getPublicMenuApi(slug);
+        const { items: menuItems } = await getPublicMenuApi(slug, qr);
         if (!cancelled) setItems(menuItems);
       } catch (err) {
         if (!cancelled) {
@@ -74,7 +82,7 @@ function MenuPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, qr]);
 
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(items.map((m) => m.category)))],
@@ -91,7 +99,7 @@ function MenuPage() {
   const favoriteItems = items.filter((m) => favs.includes(m.id));
   const recentItems = items.filter((m) => recent.includes(m.id));
 
-  if (!slug) {
+  if (!slug || !qr) {
     return (
       <CustomerLayout title="Menu">
         <div className="px-6 py-16 text-center text-sm text-muted-foreground">

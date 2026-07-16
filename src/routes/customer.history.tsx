@@ -26,39 +26,18 @@ function HistoryPage() {
           return;
         }
 
-        // Get restaurant ID from customer storage (set during QR scan)
-        const restaurantId = localStorage.getItem("pp_customer_restaurant_id");
-        if (!restaurantId) {
-          toast.error("Restaurant information not found. Please scan QR again.");
+        const context = getContext();
+        if (!context?.qrCodeId) {
+          toast.error("Invalid or expired ordering link. Please scan the QR code again.");
           setLoading(false);
           return;
-        }
-
-        // Get QR context
-        const context = getContext();
-        
-        // Build context params with mandatory restaurantId
-        const params: { restaurantId: string; tableId?: string; roomId?: string; orderType?: string } = {
-          restaurantId,
-        };
-        
-        if (context) {
-          if (context.type === "TABLE" && context.tableId) {
-            params.tableId = context.tableId;
-          } else if (context.type === "ROOM" && context.roomId) {
-            params.roomId = context.roomId;
-          } else if (context.type === "TAKEAWAY") {
-            params.orderType = "TAKEAWAY";
-          } else if (context.type === "RESTAURANT") {
-            params.orderType = "RESTAURANT";
-          }
         }
 
         // Set context label for UI
         setContextLabel(getContextLabel());
 
         // Fetch orders by context with restaurant isolation
-        const { orders: orderData } = await getCustomerOrdersByContextApi(customerSessionId, params);
+        const { orders: orderData } = await getCustomerOrdersByContextApi(customerSessionId, { qrCodeId: context.qrCodeId });
         setOrders(orderData);
       } catch (error) {
         console.error("Failed to fetch orders:", error);

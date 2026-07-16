@@ -14,6 +14,12 @@ const razorpayOrderMappingSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    qrCodeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "QRCode",
+      required: true,
+      index: true,
+    },
     amount: {
       type: Number,
       required: true,

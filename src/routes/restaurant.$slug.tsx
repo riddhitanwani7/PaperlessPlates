@@ -23,6 +23,7 @@ function EntryPage() {
         table: params.get("table") ?? undefined,
         room: params.get("room") ?? undefined,
         takeaway: params.get("takeaway") === "true" ? "true" : undefined,
+        qr: params.get("qr") ?? undefined,
       },
       replace: true,
     });

@@ -2,22 +2,22 @@ import { Category } from "../models/Category.js";
 import { MenuItem } from "../models/MenuItem.js";
 import { Restaurant } from "../models/Restaurant.js";
 import { AppError } from "../utils/AppError.js";
+import { getOrderingContext } from "./ordering-context.service.js";
 
-async function getPublicRestaurantRecord(slug) {
-  const restaurant = await Restaurant.findOne({
-    slug: slug.toLowerCase().trim(),
-    onboardingCompleted: true,
-  });
-
-  if (!restaurant) {
-    throw new AppError("Restaurant not found", 404);
+async function getPublicRestaurantRecord(slug, qrCodeId) {
+  const context = await getOrderingContext(qrCodeId);
+  if (context.restaurant.slug !== slug.toLowerCase().trim()) {
+    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
   }
-
-  return restaurant;
+  return context.restaurant;
 }
 
-export async function getPublicRestaurantBySlug(slug) {
-  const restaurant = await getPublicRestaurantRecord(slug);
+export async function getPublicRestaurantBySlug(slug, qrCodeId) {
+  const context = await getOrderingContext(qrCodeId);
+  const restaurant = context.restaurant;
+  if (restaurant.slug !== slug.toLowerCase().trim()) {
+    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
+  }
 
   return {
     id: restaurant._id.toString(),
@@ -30,6 +30,12 @@ export async function getPublicRestaurantBySlug(slug) {
     menuFileType: restaurant.menuFileType || null,
     menuMode: restaurant.menuMode || "DOCUMENT",
     slug: restaurant.slug,
+    qrCodeId: context.qr._id.toString(),
+    orderContext: {
+      type: context.orderType,
+      tableId: context.tableId,
+      roomId: context.roomId,
+    },
     onlinePaymentsEnabled: restaurant.paymentSettings?.provider === "razorpay"
       && restaurant.paymentSettings.paymentsEnabled
       && !!(restaurant.paymentSettings.keyId && restaurant.paymentSettings.encryptedKeySecret),
@@ -50,8 +56,8 @@ export async function getPublicRestaurantBySlug(slug) {
   };
 }
 
-export async function getPublicCategoriesBySlug(slug) {
-  const restaurant = await getPublicRestaurantRecord(slug);
+export async function getPublicCategoriesBySlug(slug, qrCodeId) {
+  const restaurant = await getPublicRestaurantRecord(slug, qrCodeId);
   const categories = await Category.find({
     restaurantId: restaurant._id,
     active: true,
@@ -65,8 +71,8 @@ export async function getPublicCategoriesBySlug(slug) {
   }));
 }
 
-export async function getPublicMenuBySlug(slug) {
-  const restaurant = await getPublicRestaurantRecord(slug);
+export async function getPublicMenuBySlug(slug, qrCodeId) {
+  const restaurant = await getPublicRestaurantRecord(slug, qrCodeId);
   const categories = await Category.find({
     restaurantId: restaurant._id,
     active: true,

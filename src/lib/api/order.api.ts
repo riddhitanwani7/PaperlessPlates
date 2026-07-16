@@ -9,6 +9,7 @@ export interface OrderItem {
 }
 
 export interface CreateOrderRequest {
+  qrCodeId: string;
   restaurantId: string;
   customerSessionId: string;
   items: OrderItem[];
@@ -60,12 +61,9 @@ export function getCustomerOrdersApi(sessionId: string) {
   return apiRequest<{ orders: Order[] }>(`/orders/customer/${sessionId}`);
 }
 
-export function getCustomerOrdersByContextApi(sessionId: string, params: { restaurantId: string; tableId?: string; roomId?: string; orderType?: string }) {
+export function getCustomerOrdersByContextApi(sessionId: string, params: { qrCodeId: string }) {
   const queryParams = new URLSearchParams();
-  queryParams.append("restaurantId", params.restaurantId);
-  if (params.tableId) queryParams.append("tableId", params.tableId);
-  if (params.roomId) queryParams.append("roomId", params.roomId);
-  if (params.orderType) queryParams.append("orderType", params.orderType);
+  queryParams.append("qrCodeId", params.qrCodeId);
   
   return apiRequest<{ orders: Order[] }>(`/orders/customer/${sessionId}/context?${queryParams.toString()}`);
 }

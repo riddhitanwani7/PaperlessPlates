@@ -1,6 +1,8 @@
 import QRCode from "qrcode";
 import { QRCode as QRCodeModel } from "../models/QRCode.js";
 import { Restaurant } from "../models/Restaurant.js";
+import { Table } from "../models/Table.js";
+import { Room } from "../models/Room.js";
 import { AppError } from "../utils/AppError.js";
 import { env } from "../config/env.js";
 import { deleteQrImage, uploadQrImage } from "./upload.service.js";
@@ -64,17 +66,12 @@ export async function generateRestaurantQR(ownerId, options = {}) {
 
   const { type = "Restaurant", tableId, roomId } = options;
 
-  // Build URL based on type
-  let qrUrl = `${env.clientUrl}/restaurant/${restaurant.slug}`;
-  if (type === "Table" && tableId) {
-    qrUrl += `?table=${tableId}`;
-  } else if (type === "Room" && roomId) {
-    qrUrl += `?room=${roomId}`;
-  } else if (type === "Takeaway") {
-    qrUrl += `?takeaway=true`;
+  if (type === "Table" && (!tableId || !await Table.findOne({ restaurantId: restaurant._id, tableNumber: tableId }))) {
+    throw new AppError("Table not found for this restaurant", 400);
   }
-
-  const uploadResult = await buildQrImage(qrUrl);
+  if (type === "Room" && (!roomId || !await Room.findOne({ restaurantId: restaurant._id, roomNumber: roomId }))) {
+    throw new AppError("Room not found for this restaurant", 400);
+  }
 
   let qr = await QRCodeModel.findOne({ 
     restaurantId: restaurant._id,
@@ -83,10 +80,6 @@ export async function generateRestaurantQR(ownerId, options = {}) {
     ...(roomId && { roomId }),
   });
 
-  if (qr?.qrImagePublicId) {
-    await deleteQrImage(qr.qrImagePublicId);
-  }
-
   if (!qr) {
     qr = new QRCodeModel({ 
       restaurantId: restaurant._id,
@@ -94,6 +87,15 @@ export async function generateRestaurantQR(ownerId, options = {}) {
       ...(tableId && { tableId }),
       ...(roomId && { roomId }),
     });
+  }
+
+  // Build URL based on type
+  const qrUrl = `${env.clientUrl}/restaurant/${restaurant.slug}?qr=${qr._id}`;
+
+  const uploadResult = await buildQrImage(qrUrl);
+
+  if (qr?.qrImagePublicId) {
+    await deleteQrImage(qr.qrImagePublicId);
   }
 
   qr.slug = restaurant.slug;

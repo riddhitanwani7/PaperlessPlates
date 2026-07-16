@@ -2,10 +2,11 @@ import { apiRequest } from "./client";
 import { type CreateOrderRequest, type Order } from "./order.api";
 
 export interface CreatePaymentOrderRequest {
-  amount: number;
   currency: string;
   receipt: string;
   restaurantId?: string;
+  qrCodeId: string;
+  items: CreateOrderRequest["items"];
 }
 
 export interface CreatePaymentOrderResponse {
