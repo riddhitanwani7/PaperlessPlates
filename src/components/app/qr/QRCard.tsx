@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { QREntity } from "@/lib/types/qr";
 import { Card } from "@/components/ui/card";
