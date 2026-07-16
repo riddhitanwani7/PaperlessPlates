@@ -127,7 +127,7 @@ function ProfileSettingsPage() {
   const [theme, setTheme] = useState<RestaurantTheme>(DEFAULT_THEME);
   const hasMultipleThemes = hasFeature(restaurant?.selectedPlan, "multipleThemes");
 
-  const [paymentProvider, setPaymentProvider] = useState<"razorpay" | null>("razorpay");
+  const [paymentProvider, setPaymentProvider] = useState<"razorpay">("razorpay");
   const [paymentKeyId, setPaymentKeyId] = useState("");
   const [paymentKeySecret, setPaymentKeySecret] = useState("");
   const [paymentWebhookSecret, setPaymentWebhookSecret] = useState("");
@@ -169,7 +169,9 @@ function ProfileSettingsPage() {
 
         try {
           const paymentData = await getPaymentSettingsApi(token);
-          setPaymentProvider(paymentData.provider);
+          // Razorpay is the only supported provider. Do not let an unconfigured
+          // persisted value turn the visible default into a null save payload.
+          setPaymentProvider(paymentData.provider || "razorpay");
           setPaymentKeyId(paymentData.keyId || "");
           setPaymentsEnabled(paymentData.paymentsEnabled);
           setPaymentIsConnected(paymentData.isConnected);
@@ -302,12 +304,17 @@ function ProfileSettingsPage() {
   }
 
   async function handleSavePaymentSettings() {
+    if (paymentProvider !== "razorpay") {
+      toast.error("Select Razorpay as the payment provider before saving.");
+      return;
+    }
+
     setSaving(true);
     try {
       const token = auth.getToken();
       if (!token) return;
 
-      const payload: any = {
+      const payload = {
         provider: paymentProvider,
         keyId: paymentKeyId,
         paymentsEnabled,
@@ -317,7 +324,7 @@ function ProfileSettingsPage() {
       if (paymentWebhookSecret) payload.webhookSecret = paymentWebhookSecret;
 
       const updatedSettings = await savePaymentSettingsApi(token, payload);
-      setPaymentProvider(updatedSettings.provider);
+      setPaymentProvider(updatedSettings.provider || "razorpay");
       setPaymentKeyId(updatedSettings.keyId || "");
       setPaymentsEnabled(updatedSettings.paymentsEnabled);
       setPaymentIsConnected(updatedSettings.isConnected);
@@ -637,8 +644,10 @@ function ProfileSettingsPage() {
               <div className="space-y-1">
                 <Label>Provider</Label>
                 <Select
-                  value={paymentProvider || "razorpay"}
-                  onValueChange={(v) => setPaymentProvider(v as "razorpay" | null)}
+                  value={paymentProvider}
+                  onValueChange={(v) => {
+                    if (v === "razorpay") setPaymentProvider(v);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Payment Provider" />

@@ -474,6 +474,10 @@ export async function saveRestaurantPaymentSettings(user, payload) {
   const restaurant = await getRestaurantDocForUser(user);
   const { provider, keyId, keySecret, webhookSecret, paymentsEnabled } = payload;
 
+  if (provider !== "razorpay") {
+    throw new AppError("Select Razorpay as the payment provider before saving payment settings", 400);
+  }
+
   if (!restaurant.paymentSettings) {
     restaurant.paymentSettings = {
       provider: null,
@@ -481,9 +485,7 @@ export async function saveRestaurantPaymentSettings(user, payload) {
     };
   }
 
-  if (provider !== undefined) {
-    restaurant.paymentSettings.provider = provider;
-  }
+  restaurant.paymentSettings.provider = provider;
 
   if (keyId !== undefined) {
     const trimmed = keyId.trim();
