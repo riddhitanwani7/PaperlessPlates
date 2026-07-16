@@ -9,6 +9,8 @@ import { QRCard } from "@/components/app/qr/QRCard";
 import { GenerateQRDialog } from "@/components/app/qr/GenerateQRDialog";
 import { ApiError } from "@/lib/api/client";
 import { generateQRApi, getMyQRApi, updateQRApi } from "@/lib/api/qr.api";
+import { getRestaurantTablesApi, type Table } from "@/lib/api/table.api";
+import { getRestaurantRoomsApi, type Room } from "@/lib/api/room.api";
 import { auth } from "@/lib/auth";
 import type { QREntity } from "@/lib/types/qr";
 import { Loader2, Plus, Lock } from "lucide-react";
@@ -33,6 +35,8 @@ function QRPage() {
   const [dialog, setDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const { restaurant } = useRestaurant();
   const planId = restaurant?.selectedPlan;
 
@@ -59,45 +63,43 @@ function QRPage() {
     loadQR();
   }, []);
 
+  useEffect(() => {
+    const token = auth.getToken();
+    const restaurantId = restaurant?.id;
+    if (!token || !restaurantId) return;
+
+    Promise.all([
+      getRestaurantTablesApi(token, restaurantId),
+      getRestaurantRoomsApi(token, restaurantId),
+    ])
+      .then(([tableResult, roomResult]) => {
+        setTables(tableResult.tables);
+        setRooms(roomResult.rooms);
+      })
+      .catch((error) => {
+        console.error("Failed to load tables and rooms for QR generation:", error);
+        toast.error(t("qr.loadFailed"));
+      });
+  }, [restaurant?.id, t]);
+
   const filtered = qrs.filter((q) => filter === "All" || q.type === filter);
 
   async function handleGenerate(data: {
     type: "Table" | "Room" | "Restaurant" | "Takeaway";
     label: string;
-    bulkFrom?: number;
-    bulkTo?: number;
   }) {
     const token = auth.getToken();
     if (!token) return;
 
     setGenerating(true);
     try {
-      if (data.bulkFrom && data.bulkTo) {
-        // Bulk generation
-        const promises = [];
-        for (let i = data.bulkFrom; i <= data.bulkTo; i++) {
-          const id = data.type === "Table" ? `T${i}` : `R${i}`;
-          promises.push(
-            generateQRApi(token, {
-              type: data.type,
-              tableId: data.type === "Table" ? id : undefined,
-              roomId: data.type === "Room" ? id : undefined,
-            }),
-          );
-        }
-        const results = await Promise.all(promises);
-        setQrs([...qrs, ...results.map((r) => r.qr)]);
-        toast.success(t("qr.generatedBulk", { count: data.bulkTo - data.bulkFrom + 1 }));
-      } else {
-        // Single generation
-        const { qr } = await generateQRApi(token, {
-          type: data.type,
-          tableId: data.type === "Table" ? data.label : undefined,
-          roomId: data.type === "Room" ? data.label : undefined,
-        });
-        setQrs([...qrs, qr]);
-        toast.success(t("qr.generatedSingle"));
-      }
+      const { qr } = await generateQRApi(token, {
+        type: data.type,
+        tableId: data.type === "Table" ? data.label : undefined,
+        roomId: data.type === "Room" ? data.label : undefined,
+      });
+      setQrs([...qrs, qr]);
+      toast.success(t("qr.generatedSingle"));
       setDialog(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("qr.generateFailed"));
@@ -202,7 +204,13 @@ function QRPage() {
           ))}
         </div>
       )}
-      <GenerateQRDialog open={dialog} onOpenChange={setDialog} onGenerate={handleGenerate} />
+      <GenerateQRDialog
+        open={dialog}
+        onOpenChange={setDialog}
+        onGenerate={handleGenerate}
+        tableNumbers={tables.map((table) => table.tableNumber)}
+        roomNumbers={rooms.map((room) => room.roomNumber)}
+      />
     </>
   );
 }
