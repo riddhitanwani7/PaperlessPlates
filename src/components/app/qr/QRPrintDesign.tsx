@@ -6,9 +6,16 @@ interface QRPrintDesignProps {
   tableLabel?: string;
   qrUrl: string;
   onImageGenerated?: (dataUrl: string) => void;
+  className?: string;
 }
 
-export function QRPrintDesign({ restaurantName, tableLabel, qrUrl, onImageGenerated }: QRPrintDesignProps) {
+export function QRPrintDesign({
+  restaurantName,
+  tableLabel,
+  qrUrl,
+  onImageGenerated,
+  className = "hidden",
+}: QRPrintDesignProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -74,5 +81,5 @@ export function QRPrintDesign({ restaurantName, tableLabel, qrUrl, onImageGenera
     generateDesign();
   }, [restaurantName, tableLabel, qrUrl, onImageGenerated]);
 
-  return <canvas ref={canvasRef} className="hidden" />;
+  return <canvas ref={canvasRef} className={className} />;
 }

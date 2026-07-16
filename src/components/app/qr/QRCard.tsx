@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { QRImage, downloadQRSvg } from "./QRImage";
 import { Eye, Download, Printer, Copy, Power } from "lucide-react";
 import { QRPrintDesign } from "./QRPrintDesign";
+import { QRPreviewDialog } from "./QRPreviewDialog";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -15,9 +16,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function QRCard({ qr, onToggle }: { qr: QREntity; onToggle: (id: string) => void }) {
+export function QRCard({
+  qr,
+  restaurantName,
+  onToggle,
+}: {
+  qr: QREntity;
+  restaurantName: string;
+  onToggle: (id: string) => void;
+}) {
   const { t } = useTranslation();
   const [printDataUrl, setPrintDataUrl] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   // This is the immutable URL encoded when the QR was generated. Every
   // customer-facing action must use it verbatim so the QR context is preserved.
   const customerOrderingUrl = qr.qrUrl;
@@ -116,15 +126,7 @@ export function QRCard({ qr, onToggle }: { qr: QREntity; onToggle: (id: string) 
         <QRImage value={customerOrderingUrl} size={140} />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            if (!window.open(customerOrderingUrl, "_blank", "noopener,noreferrer")) {
-              toast.error("Unable to open the preview. Please allow pop-ups and try again.");
-            }
-          }}
-        >
+        <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
           <Eye className="mr-1.5 h-3.5 w-3.5" /> {t("qr.preview")}
         </Button>
         <DropdownMenu>
@@ -189,6 +191,13 @@ export function QRCard({ qr, onToggle }: { qr: QREntity; onToggle: (id: string) 
         <Power className="mr-1.5 h-3.5 w-3.5" />
         {qr.active ? t("qr.deactivate") : t("qr.activate")}
       </Button>
+      <QRPreviewDialog
+        qr={qr}
+        qrUrl={customerOrderingUrl}
+        restaurantName={restaurantName}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </Card>
   );
 }

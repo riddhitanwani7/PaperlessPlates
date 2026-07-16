@@ -61,7 +61,12 @@ function QRPage() {
 
   const filtered = qrs.filter((q) => filter === "All" || q.type === filter);
 
-  async function handleGenerate(data: { type: "Table" | "Room" | "Restaurant" | "Takeaway"; label: string; bulkFrom?: number; bulkTo?: number }) {
+  async function handleGenerate(data: {
+    type: "Table" | "Room" | "Restaurant" | "Takeaway";
+    label: string;
+    bulkFrom?: number;
+    bulkTo?: number;
+  }) {
     const token = auth.getToken();
     if (!token) return;
 
@@ -77,7 +82,7 @@ function QRPage() {
               type: data.type,
               tableId: data.type === "Table" ? id : undefined,
               roomId: data.type === "Room" ? id : undefined,
-            })
+            }),
           );
         }
         const results = await Promise.all(promises);
@@ -130,7 +135,11 @@ function QRPage() {
         title={t("qr.title")}
         description={t("qr.description")}
         actions={
-          <Button className="bg-gradient-coral" onClick={() => setDialog(true)} disabled={generating || !canAddQR}>
+          <Button
+            className="bg-gradient-coral"
+            onClick={() => setDialog(true)}
+            disabled={generating || !canAddQR}
+          >
             {generating ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : (
@@ -155,7 +164,9 @@ function QRPage() {
             onClick={() => setFilter(typeOption)}
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              filter === typeOption ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-muted",
+              filter === typeOption
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card hover:bg-muted",
             )}
           >
             {typeOption === "All"
@@ -181,14 +192,17 @@ function QRPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((qr) => <QRCard key={qr.id} qr={qr} onToggle={toggle} />)}
+          {filtered.map((qr) => (
+            <QRCard
+              key={qr.id}
+              qr={qr}
+              restaurantName={restaurant?.restaurantName ?? qr.label}
+              onToggle={toggle}
+            />
+          ))}
         </div>
       )}
-      <GenerateQRDialog
-        open={dialog}
-        onOpenChange={setDialog}
-        onGenerate={handleGenerate}
-      />
+      <GenerateQRDialog open={dialog} onOpenChange={setDialog} onGenerate={handleGenerate} />
     </>
   );
 }
