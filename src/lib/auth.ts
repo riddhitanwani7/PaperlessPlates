@@ -1,9 +1,7 @@
 import {
-  forgotPasswordApi,
   getMeApi,
   loginApi,
   registerApi,
-  resetPasswordApi,
   type AuthUser,
 } from "@/lib/api/auth.api";
 import { setAppLanguage } from "@/i18n";
@@ -110,17 +108,6 @@ export const auth = {
     } catch (error) {
       console.error("Failed to load owner restaurant:", error);
     }
-  },
-
-  async forgotPassword(email: string) {
-    const { message } = await forgotPasswordApi(email);
-    return message;
-  },
-
-  async resetPassword(token: string, password: string) {
-    const { token: jwt, user } = await resetPasswordApi({ token, password });
-    persistSession(jwt, user);
-    return user;
   },
 
   async refreshSession() {

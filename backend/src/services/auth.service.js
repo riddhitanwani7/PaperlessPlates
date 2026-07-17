@@ -71,16 +71,21 @@ export async function requestPasswordReset(email) {
   const user = await User.findOne({ email: email.toLowerCase().trim() });
   if (!user) {
     // Do not reveal whether the email exists
+    console.info("[password-reset] No matching user found");
     return { message: "If that email is registered, a reset link has been sent." };
   }
+  console.info("[password-reset] User found");
 
   const resetToken = crypto.randomBytes(32).toString("hex");
   const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  console.info("[password-reset] Reset token generated");
 
   user.resetPasswordToken = hashedToken;
   user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
   await user.save({ validateBeforeSave: false });
+  console.info("[password-reset] Reset token persisted");
 
+  console.info("[password-reset] Calling email provider");
   await sendPasswordResetEmail({
     to: user.email,
     name: user.name,

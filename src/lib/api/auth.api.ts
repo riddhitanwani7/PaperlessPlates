@@ -15,10 +15,6 @@ type AuthPayload = {
   token: string;
 };
 
-type MessagePayload = {
-  message: string;
-};
-
 export function registerApi(input: {
   name: string;
   email: string;
@@ -32,20 +28,6 @@ export function registerApi(input: {
 
 export function loginApi(input: { email: string; password: string }) {
   return apiRequest<AuthPayload>("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
-export function forgotPasswordApi(email: string) {
-  return apiRequest<MessagePayload>("/auth/forgot-password", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
-}
-
-export function resetPasswordApi(input: { token: string; password: string }) {
-  return apiRequest<AuthPayload & MessagePayload>("/auth/reset-password", {
     method: "POST",
     body: JSON.stringify(input),
   });
