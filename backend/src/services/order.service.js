@@ -53,14 +53,13 @@ function startOfCurrentMonth() {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-export async function getOrderQuote({ items, qrCodeId, restaurantId }) {
+async function getOrderQuoteForContext({ items, context }) {
   if (!items || items.length === 0) throw new AppError("Order must contain at least one item", 400);
   for (const item of items) {
     if (!item.quantity || item.quantity <= 0)
       throw new AppError("Item quantity must be greater than zero", 400);
   }
 
-  const context = await getOrderingContext(qrCodeId, restaurantId);
   const menuItemIds = items.map((item) => item.menuItemId);
   if (menuItemIds.some((id) => !id)) throw new AppError("Invalid menu item", 400);
 
@@ -89,38 +88,33 @@ export async function getOrderQuote({ items, qrCodeId, restaurantId }) {
   return { context, validatedItems, subtotal, tax, total: +(subtotal + tax).toFixed(2) };
 }
 
-export async function createOrder(orderData) {
+export async function getOrderQuote({ items, qrCodeId, restaurantId }) {
+  const context = await getOrderingContext(qrCodeId, restaurantId);
+  return getOrderQuoteForContext({ items, context });
+}
+
+export async function getOrderQuoteForPaymentMapping({ items, context }) {
+  return getOrderQuoteForContext({ items, context });
+}
+
+async function createOrderFromQuote(orderData, quote) {
   const {
-    restaurantId,
     customerSessionId,
-    items,
     paymentMethod,
     paymentStatus,
     paymentGateway,
     paymentId,
     paymentGatewayOrderId,
     paymentSignature,
-    tableId,
-    roomId,
     notes,
-    orderType,
-    qrCodeId,
   } = orderData;
 
   // Validate input
   if (!customerSessionId) {
     throw new AppError("Customer session ID is required", 400);
   }
-  const quote = await getOrderQuote({ items, qrCodeId, restaurantId });
   const { context, validatedItems, subtotal, tax, total } = quote;
   const restaurant = context.restaurant;
-  if (
-    (orderType && orderType !== context.orderType) ||
-    tableId !== context.tableId ||
-    roomId !== context.roomId
-  ) {
-    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
-  }
 
   // Enforce monthly order limit (Basic: 500/mo, Premium/Enterprise: unlimited)
   const ordersThisMonth = await Order.countDocuments({
@@ -162,6 +156,29 @@ export async function createOrder(orderData) {
 
   await order.save();
   return sanitizeOrder(order);
+}
+
+export async function createOrder(orderData) {
+  const { items, qrCodeId, restaurantId, orderType, tableId, roomId } = orderData;
+  const quote = await getOrderQuote({ items, qrCodeId, restaurantId });
+  const { context } = quote;
+  if (
+    (orderType && orderType !== context.orderType) ||
+    tableId !== context.tableId ||
+    roomId !== context.roomId
+  ) {
+    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
+  }
+
+  return createOrderFromQuote(orderData, quote);
+}
+
+// Payment verification calls this only with context persisted in the server-side
+// Razorpay mapping. Browser-provided QR, table, room, and restaurant fields are
+// intentionally excluded from this path.
+export async function createPaidOrderFromPaymentMapping(orderData, context) {
+  const quote = await getOrderQuoteForContext({ items: orderData.items, context });
+  return createOrderFromQuote(orderData, quote);
 }
 
 export async function getCustomerOrderByIdAndContext({ customerSessionId, orderId, qrCodeId }) {

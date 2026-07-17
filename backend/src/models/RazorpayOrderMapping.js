@@ -20,6 +20,19 @@ const razorpayOrderMappingSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    orderType: {
+      type: String,
+      enum: ["RESTAURANT", "TABLE", "ROOM", "TAKEAWAY"],
+      required: true,
+    },
+    tableId: {
+      type: String,
+      trim: true,
+    },
+    roomId: {
+      type: String,
+      trim: true,
+    },
     amount: {
       type: Number,
       required: true,

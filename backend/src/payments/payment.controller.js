@@ -75,6 +75,9 @@ export const createPaymentOrder = asyncHandler(async (req, res) => {
     razorpayOrderId: order.id,
     restaurantId: restaurant._id,
     qrCodeId: quote.context.qr._id,
+    orderType: quote.context.orderType,
+    tableId: quote.context.tableId,
+    roomId: quote.context.roomId,
     amount: order.amount,
     currency: order.currency,
     receipt: receipt,
@@ -119,10 +122,6 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!mapping.qrCodeId || !orderData.qrCodeId || orderData.qrCodeId !== mapping.qrCodeId.toString()) {
-    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
-  }
-
   const restaurant = await Restaurant.findById(mapping.restaurantId);
   if (!restaurant) {
     return res.status(404).json({
@@ -132,9 +131,23 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   }
 
   const settings = restaurant.paymentSettings;
-  const quote = await orderService.getOrderQuote(orderData);
-  if (quote.context.restaurant._id.toString() !== restaurant._id.toString() || mapping.amount !== Math.round(quote.total * 100)) {
-    throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
+  if (!mapping.qrCodeId || !mapping.orderType) {
+    throw new AppError("Payment ordering context is unavailable", 400);
+  }
+
+  const paymentContext = {
+    restaurant,
+    qr: { _id: mapping.qrCodeId },
+    orderType: mapping.orderType,
+    tableId: mapping.tableId,
+    roomId: mapping.roomId,
+  };
+  const quote = await orderService.getOrderQuoteForPaymentMapping({
+    items: orderData.items,
+    context: paymentContext,
+  });
+  if (mapping.amount !== Math.round(quote.total * 100)) {
+    throw new AppError("Payment amount no longer matches the order", 400);
   }
 
   const valid = paymentService.verifyPaymentSignature(
@@ -161,16 +174,20 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     throw new AppError("Payment has already been processed", 409);
   }
 
-  const order = await orderService.createOrder({
+  const order = await orderService.createPaidOrderFromPaymentMapping({
     ...orderData,
     restaurantId: mapping.restaurantId,
+    qrCodeId: mapping.qrCodeId,
+    orderType: mapping.orderType,
+    tableId: mapping.tableId,
+    roomId: mapping.roomId,
     paymentMethod: "UPI",
     paymentGateway: "RAZORPAY",
     paymentStatus: "PAID",
     paymentId,
     paymentGatewayOrderId: orderId,
     paymentSignature: signature,
-  });
+  }, paymentContext);
 
   res.json({
     success: true,
