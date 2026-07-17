@@ -34,9 +34,9 @@ export function AuthShell({
             </p>
             <div className="grid grid-cols-3 gap-3 pt-4 text-sm">
               {[
-                ["12k+", t("shell.restaurants")],
-                ["2.4M", t("shell.orders")],
-                ["99.99%", t("shell.uptime")],
+                ["QR Ordering", "Contactless Experience"],
+                ["Live Kitchen", "Order Tracking"],
+                ["Analytics", "Business Insights"],
               ].map(([v, l]) => (
                 <div key={l} className="rounded-xl bg-white/10 p-3 backdrop-blur">
                   <div className="font-display text-2xl">{v}</div>
