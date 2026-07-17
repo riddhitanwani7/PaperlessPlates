@@ -18,47 +18,13 @@ const CONTEXT_EVENT = "pp:context";
 // Generate context-aware cart key
 function getCartKey(): string {
   if (typeof window === "undefined") return BASE_KEY;
-  
-  const context = getContext();
-  
-  if (!context) return `${BASE_KEY}_restaurant`;
-  
-  if (context.type === "TABLE" && context.tableId) {
-    return `${BASE_KEY}_table_${context.tableId}`;
-  }
-  
-  if (context.type === "ROOM" && context.roomId) {
-    return `${BASE_KEY}_room_${context.roomId}`;
-  }
-  
-  if (context.type === "TAKEAWAY") {
-    return `${BASE_KEY}_takeaway`;
-  }
-  
-  return `${BASE_KEY}_restaurant`;
-}
 
-// Cleanup legacy cart keys
-function cleanupLegacyKeys() {
-  if (typeof window === "undefined") return;
-  
   const context = getContext();
-  const validKey = getCartKey();
-  
-  // Get all cart keys
-  const allKeys = Object.keys(localStorage).filter(key => key.startsWith("pp_cart"));
-  
-  // Remove all except the current valid key
-  allKeys.forEach(key => {
-    if (key !== validKey && key !== BASE_KEY) {
-      localStorage.removeItem(key);
-    }
-  });
-  
-  // Also remove the legacy shared cart key
-  if (validKey !== BASE_KEY) {
-    localStorage.removeItem(BASE_KEY);
-  }
+  if (!context?.qrCodeId) return BASE_KEY;
+
+  // The immutable QR ID is the only client-side cart partition key. Table and
+  // room labels can repeat across restaurants and are not authoritative.
+  return `${BASE_KEY}_qr_${context.qrCodeId}`;
 }
 
 function read(): CartItem[] {
@@ -80,7 +46,6 @@ function write(items: CartItem[]) {
 export const cart = {
   get: read,
   add(item: Omit<CartItem, "qty"> & { qty?: number }) {
-    cleanupLegacyKeys();
     const items = read();
     const existing = items.find((i) => i.id === item.id);
     if (existing) {
@@ -91,22 +56,18 @@ export const cart = {
     write(items);
   },
   setQty(id: string, qty: number) {
-    cleanupLegacyKeys();
     const items = read()
       .map((i) => (i.id === id ? { ...i, qty } : i))
       .filter((i) => i.qty > 0);
     write(items);
   },
   remove(id: string) {
-    cleanupLegacyKeys();
     write(read().filter((i) => i.id !== id));
   },
   clear() {
-    cleanupLegacyKeys();
     write([]);
   },
   setNotes(id: string, notes: string) {
-    cleanupLegacyKeys();
     write(read().map((i) => (i.id === id ? { ...i, notes } : i)));
   },
 };
@@ -114,14 +75,11 @@ export const cart = {
 export function useCart() {
   const [items, setItems] = useState<CartItem[]>([]);
   useEffect(() => {
-    cleanupLegacyKeys();
     setItems(read());
     const onCartChange = () => {
-      cleanupLegacyKeys();
       setItems(read());
     };
     const onContextChange = () => {
-      cleanupLegacyKeys();
       setItems(read());
     };
     window.addEventListener(CART_EVENT, onCartChange);

@@ -33,7 +33,7 @@ function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [onlinePaymentsEnabled, setOnlinePaymentsEnabled] = useState(true);
   const [currency, setCurrency] = useState("INR");
-  
+
   // Get QR context from localStorage
   const context = getContext();
   const contextLabel = getContextLabel();
@@ -67,159 +67,158 @@ function CheckoutPage() {
   if (!hydrated) return null;
   if (hydrated && items.length === 0) return null;
 
- async function handlePlaceOrder() {
-  setLoading(true);
+  async function handlePlaceOrder() {
+    setLoading(true);
 
-  try {
-    const customerSessionId = getCustomerSessionId();
-
-    if (!customerSessionId) {
-      toast.error("Session error. Please refresh the page.");
-      setLoading(false);
-      return;
-    }
-
-    const restaurantId = localStorage.getItem("pp_customer_restaurant_id");
-
-    if (!restaurantId || !context?.qrCodeId) {
-      toast.error("Invalid or expired ordering link. Please scan the QR code again.");
-      setLoading(false);
-      return;
-    }
-
-    const orderData: CreateOrderRequest = {
-      qrCodeId: context.qrCodeId,
-      restaurantId,
-      customerSessionId,
-      items: items.map((item) => ({
-        menuItemId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.qty,
-        notes: item.notes,
-      })),
-      tableId: context?.tableId,
-      roomId: context?.roomId,
-      orderType: context?.type,
-      notes: notes || undefined,
-    };
-
-    // ---------------- CASH ----------------
-
-    if (paymentMethod === "CASH") {
-      orderData.paymentMethod = "CASH";
-
-      const { order } = await createOrderApi(orderData);
-
-      clear();
-
-      toast.success("Order placed successfully!");
-
-      navigate({
-        to: "/customer/order-confirmation/$id",
-        params: {
-          id: order.orderNumber,
-        },
-      });
-
-      return;
-    }
-
-    // ---------------- UPI ----------------
-
-    const receipt = `PP_${Date.now()}`;
-
-    const paymentOrder = await createPaymentOrderApi({
-      currency: "INR",
-      receipt,
-      restaurantId: restaurantId || undefined,
-      qrCodeId: context.qrCodeId,
-      items: orderData.items,
-    });
-
-    console.log("Payment Order:", paymentOrder);
-
-  const options = {
-  key: paymentOrder.key,
-  amount: paymentOrder.amount,
-  currency: paymentOrder.currency,
-  order_id: paymentOrder.orderId,
-
-  name: "PaperlessPlates",
-  description: "Restaurant Order Payment",
-
-  prefill: {
-    name: name || "",
-    contact: phone || "",
-  },
-
-  theme: {
-    color: "#f97316",
-  },
-
-  method: {
-    upi: true,
-    card: true,
-    netbanking: true,
-    wallet: true,
-    emi: false,
-    paylater: true,
-  },
-
-  handler: async (response: any) => {
     try {
-      const verifyResponse = await verifyPaymentApi({
-        orderId: response.razorpay_order_id,
-        paymentId: response.razorpay_payment_id,
-        signature: response.razorpay_signature,
-        orderData: {
-          ...orderData,
-          paymentMethod: "UPI",
-        },
+      const customerSessionId = getCustomerSessionId();
+
+      if (!customerSessionId) {
+        toast.error("Session error. Please refresh the page.");
+        setLoading(false);
+        return;
+      }
+
+      const restaurantId = localStorage.getItem("pp_customer_restaurant_id");
+
+      if (!restaurantId || !context?.qrCodeId) {
+        toast.error("Invalid or expired ordering link. Please scan the QR code again.");
+        setLoading(false);
+        return;
+      }
+
+      const orderData: CreateOrderRequest = {
+        qrCodeId: context.qrCodeId,
+        restaurantId,
+        customerSessionId,
+        items: items.map((item) => ({
+          menuItemId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.qty,
+          notes: item.notes,
+        })),
+        tableId: context?.tableId,
+        roomId: context?.roomId,
+        orderType: context?.type,
+        notes: notes || undefined,
+      };
+
+      // ---------------- CASH ----------------
+
+      if (paymentMethod === "CASH") {
+        orderData.paymentMethod = "CASH";
+
+        const { order } = await createOrderApi(orderData);
+
+        clear();
+
+        toast.success("Order placed successfully!");
+
+        navigate({
+          to: "/customer/order-confirmation/$id",
+          params: {
+            id: order.id,
+          },
+        });
+
+        return;
+      }
+
+      // ---------------- UPI ----------------
+
+      const receipt = `PP_${Date.now()}`;
+
+      const paymentOrder = await createPaymentOrderApi({
+        currency: "INR",
+        receipt,
+        restaurantId: restaurantId || undefined,
+        qrCodeId: context.qrCodeId,
+        items: orderData.items,
       });
 
-      clear();
+      console.log("Payment Order:", paymentOrder);
 
-      toast.success("Payment successful! Order placed.");
+      const options = {
+        key: paymentOrder.key,
+        amount: paymentOrder.amount,
+        currency: paymentOrder.currency,
+        order_id: paymentOrder.orderId,
 
-      navigate({
-        to: "/customer/order-confirmation/$id",
-        params: {
-          id: verifyResponse.order.orderNumber,
+        name: "PaperlessPlates",
+        description: "Restaurant Order Payment",
+
+        prefill: {
+          name: name || "",
+          contact: phone || "",
         },
-      });
+
+        theme: {
+          color: "#f97316",
+        },
+
+        method: {
+          upi: true,
+          card: true,
+          netbanking: true,
+          wallet: true,
+          emi: false,
+          paylater: true,
+        },
+
+        handler: async (response: any) => {
+          try {
+            const verifyResponse = await verifyPaymentApi({
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+              orderData: {
+                ...orderData,
+                paymentMethod: "UPI",
+              },
+            });
+
+            clear();
+
+            toast.success("Payment successful! Order placed.");
+
+            navigate({
+              to: "/customer/order-confirmation/$id",
+              params: {
+                id: verifyResponse.order.id,
+              },
+            });
+          } catch (err) {
+            console.error(err);
+            toast.error("Payment verification failed.");
+          } finally {
+            setLoading(false);
+          }
+        },
+
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            toast.info("Payment cancelled.");
+          },
+        },
+      };
+
+      if (!(window as any).Razorpay) {
+        toast.error("Razorpay SDK failed to load.");
+        setLoading(false);
+        return;
+      }
+
+      const razorpay = new (window as any).Razorpay(options);
+
+      razorpay.open();
     } catch (err) {
-      console.error(err);
-      toast.error("Payment verification failed.");
-    } finally {
+      console.error("Checkout Error:", err);
+      toast.error("Failed to place order.");
       setLoading(false);
     }
-  },
-
-  modal: {
-    ondismiss: () => {
-      setLoading(false);
-      toast.info("Payment cancelled.");
-    },
-  },
-};
-
-    if (!(window as any).Razorpay) {
-      toast.error("Razorpay SDK failed to load.");
-      setLoading(false);
-      return;
-    }
-
-    const razorpay = new (window as any).Razorpay(options);
-
-    razorpay.open();
-
-  } catch (err) {
-    console.error("Checkout Error:", err);
-    toast.error("Failed to place order.");
-    setLoading(false);
   }
-}
 
   return (
     <CustomerLayout showBack title="Checkout">
@@ -240,7 +239,11 @@ function CheckoutPage() {
           </div>
           <div>
             <Label className="text-xs">Phone</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 123 4567" />
+            <Input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+1 555 123 4567"
+            />
           </div>
           <div>
             <Label className="text-xs">Order notes</Label>
@@ -263,14 +266,27 @@ function CheckoutPage() {
               This restaurant has not configured online payments.
             </div>
           )}
-          <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
+          <RadioGroup
+            value={paymentMethod}
+            onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+          >
             <div className="flex items-center space-x-3 rounded-xl border border-border bg-background p-3">
               <RadioGroupItem value="CASH" id="cash" />
-              <Label htmlFor="cash" className="flex-1 cursor-pointer font-medium">Cash</Label>
+              <Label htmlFor="cash" className="flex-1 cursor-pointer font-medium">
+                Cash
+              </Label>
             </div>
             <div className="flex items-center space-x-3 rounded-xl border border-border bg-background p-3">
               <RadioGroupItem value="UPI" id="upi" disabled={!onlinePaymentsEnabled} />
-              <Label htmlFor="upi" className={cn("flex-1 cursor-pointer font-medium", !onlinePaymentsEnabled && "text-muted-foreground")}>UPI</Label>
+              <Label
+                htmlFor="upi"
+                className={cn(
+                  "flex-1 cursor-pointer font-medium",
+                  !onlinePaymentsEnabled && "text-muted-foreground",
+                )}
+              >
+                UPI
+              </Label>
             </div>
           </RadioGroup>
         </div>

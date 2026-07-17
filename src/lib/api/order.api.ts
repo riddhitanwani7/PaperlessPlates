@@ -64,21 +64,41 @@ export function getCustomerOrdersApi(sessionId: string) {
 export function getCustomerOrdersByContextApi(sessionId: string, params: { qrCodeId: string }) {
   const queryParams = new URLSearchParams();
   queryParams.append("qrCodeId", params.qrCodeId);
-  
-  return apiRequest<{ orders: Order[] }>(`/orders/customer/${sessionId}/context?${queryParams.toString()}`);
+
+  return apiRequest<{ orders: Order[] }>(
+    `/orders/customer/${sessionId}/context?${queryParams.toString()}`,
+  );
+}
+
+export function getCustomerOrderConfirmationApi(
+  sessionId: string,
+  orderId: string,
+  qrCodeId: string,
+) {
+  return apiRequest<{ order: Order }>(
+    `/orders/customer/${sessionId}/confirmation/${orderId}?qrCodeId=${encodeURIComponent(qrCodeId)}`,
+  );
 }
 
 export function getRestaurantOrdersApi(restaurantId: string, token: string) {
- return apiRequestAuth<{ orders: Order[] }>(`/orders/restaurant/${restaurantId}`, token);
- }
-export function updateOrderStatusApi(orderId: string, status: "PENDING" | "ACCEPTED" | "PREPARING" | "READY" | "COMPLETED" | "CANCELLED", token: string) {
- return apiRequestAuth<{ order: Order }>(`/orders/${orderId}/status`, token, {
-     method: "PATCH",
-     body: JSON.stringify({ status }),
-   });
- }
+  return apiRequestAuth<{ orders: Order[] }>(`/orders/restaurant/${restaurantId}`, token);
+}
+export function updateOrderStatusApi(
+  orderId: string,
+  status: "PENDING" | "ACCEPTED" | "PREPARING" | "READY" | "COMPLETED" | "CANCELLED",
+  token: string,
+) {
+  return apiRequestAuth<{ order: Order }>(`/orders/${orderId}/status`, token, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
 
-export function updateOrderPaymentStatusApi(orderId: string, paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED", token: string) {
+export function updateOrderPaymentStatusApi(
+  orderId: string,
+  paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED",
+  token: string,
+) {
   return apiRequestAuth<{ order: Order }>(`/orders/${orderId}/payment`, token, {
     method: "PATCH",
     body: JSON.stringify({ paymentStatus }),

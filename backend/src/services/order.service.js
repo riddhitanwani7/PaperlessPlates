@@ -36,14 +36,14 @@ function sanitizeOrder(order) {
 async function generateOrderNumber() {
   const lastOrder = await Order.findOne().sort({ createdAt: -1 });
   let nextNumber = 1001;
-  
+
   if (lastOrder && lastOrder.orderNumber) {
     const lastNumber = parseInt(lastOrder.orderNumber.replace("ORD-", ""));
     if (!isNaN(lastNumber)) {
       nextNumber = lastNumber + 1;
     }
   }
-  
+
   return `ORD-${nextNumber}`;
 }
 
@@ -56,14 +56,19 @@ function startOfCurrentMonth() {
 export async function getOrderQuote({ items, qrCodeId, restaurantId }) {
   if (!items || items.length === 0) throw new AppError("Order must contain at least one item", 400);
   for (const item of items) {
-    if (!item.quantity || item.quantity <= 0) throw new AppError("Item quantity must be greater than zero", 400);
+    if (!item.quantity || item.quantity <= 0)
+      throw new AppError("Item quantity must be greater than zero", 400);
   }
 
   const context = await getOrderingContext(qrCodeId, restaurantId);
   const menuItemIds = items.map((item) => item.menuItemId);
   if (menuItemIds.some((id) => !id)) throw new AppError("Invalid menu item", 400);
 
-  const menuItems = await MenuItem.find({ _id: { $in: menuItemIds }, restaurantId: context.restaurant._id, available: true });
+  const menuItems = await MenuItem.find({
+    _id: { $in: menuItemIds },
+    restaurantId: context.restaurant._id,
+    available: true,
+  });
   if (menuItems.length !== new Set(menuItemIds.map(String)).size) {
     throw new AppError("One or more items are unavailable for this restaurant", 400);
   }
@@ -71,7 +76,13 @@ export async function getOrderQuote({ items, qrCodeId, restaurantId }) {
   const menuItemById = new Map(menuItems.map((item) => [item._id.toString(), item]));
   const validatedItems = items.map((item) => {
     const menuItem = menuItemById.get(String(item.menuItemId));
-    return { menuItemId: menuItem._id, name: menuItem.name, price: menuItem.price, quantity: item.quantity, notes: item.notes };
+    return {
+      menuItemId: menuItem._id,
+      name: menuItem.name,
+      price: menuItem.price,
+      quantity: item.quantity,
+      notes: item.notes,
+    };
   });
   const subtotal = validatedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tax = +(subtotal * 0.08).toFixed(2);
@@ -79,7 +90,22 @@ export async function getOrderQuote({ items, qrCodeId, restaurantId }) {
 }
 
 export async function createOrder(orderData) {
-  const { restaurantId, customerSessionId, items, paymentMethod, tableId, roomId, notes, orderType, qrCodeId } = orderData;
+  const {
+    restaurantId,
+    customerSessionId,
+    items,
+    paymentMethod,
+    paymentStatus,
+    paymentGateway,
+    paymentId,
+    paymentGatewayOrderId,
+    paymentSignature,
+    tableId,
+    roomId,
+    notes,
+    orderType,
+    qrCodeId,
+  } = orderData;
 
   // Validate input
   if (!customerSessionId) {
@@ -88,7 +114,11 @@ export async function createOrder(orderData) {
   const quote = await getOrderQuote({ items, qrCodeId, restaurantId });
   const { context, validatedItems, subtotal, tax, total } = quote;
   const restaurant = context.restaurant;
-  if ((orderType && orderType !== context.orderType) || tableId !== context.tableId || roomId !== context.roomId) {
+  if (
+    (orderType && orderType !== context.orderType) ||
+    tableId !== context.tableId ||
+    roomId !== context.roomId
+  ) {
     throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
   }
 
@@ -101,7 +131,7 @@ export async function createOrder(orderData) {
   if (!limitCheck.allowed) {
     throw new AppError(
       "This restaurant has reached its monthly order capacity. Please contact staff to place your order.",
-      403
+      403,
     );
   }
 
@@ -121,10 +151,30 @@ export async function createOrder(orderData) {
     tax,
     total,
     paymentMethod: paymentMethod || "CASH",
+    paymentStatus: paymentStatus || "PENDING",
+    paymentGateway: paymentGateway || "NONE",
+    paymentId,
+    paymentGatewayOrderId,
+    paymentSignature,
+    ...(paymentStatus === "PAID" && { paidAt: new Date() }),
     notes,
   });
 
   await order.save();
+  return sanitizeOrder(order);
+}
+
+export async function getCustomerOrderByIdAndContext({ customerSessionId, orderId, qrCodeId }) {
+  const context = await getOrderingContext(qrCodeId);
+  const order = await Order.findOne({
+    _id: orderId,
+    customerSessionId,
+    restaurantId: context.restaurant._id,
+    orderType: context.orderType,
+    ...(context.tableId && { tableId: context.tableId }),
+    ...(context.roomId && { roomId: context.roomId }),
+  });
+  if (!order) throw new AppError("Order not found", 404);
   return sanitizeOrder(order);
 }
 
@@ -171,9 +221,20 @@ export async function updateOrderPaymentStatus(orderId, paymentStatus) {
   return sanitizeOrder(order);
 }
 
-export async function getCustomerOrdersByContext({ customerSessionId, qrCodeId, restaurantId, tableId, roomId, orderType }) {
+export async function getCustomerOrdersByContext({
+  customerSessionId,
+  qrCodeId,
+  restaurantId,
+  tableId,
+  roomId,
+  orderType,
+}) {
   const context = await getOrderingContext(qrCodeId, restaurantId);
-  if ((tableId && tableId !== context.tableId) || (roomId && roomId !== context.roomId) || (orderType && orderType !== context.orderType)) {
+  if (
+    (tableId && tableId !== context.tableId) ||
+    (roomId && roomId !== context.roomId) ||
+    (orderType && orderType !== context.orderType)
+  ) {
     throw new AppError("Invalid or expired ordering link. Please scan the QR code again.", 400);
   }
 

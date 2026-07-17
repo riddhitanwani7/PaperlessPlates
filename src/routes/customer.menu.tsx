@@ -61,9 +61,10 @@ function MenuPage() {
             roomId: restaurant.orderContext.roomId,
           });
 
-          // This value comes from the current QR URL's public lookup, not a
-          // previously visited restaurant or a fallback value.
+          // These values come from the current QR URL's validated public
+          // lookup, not a previously visited restaurant or a client fallback.
           localStorage.setItem("pp_customer_restaurant_id", restaurant.id);
+          localStorage.setItem("pp_customer_restaurant_info", JSON.stringify(restaurant));
         }
 
         // Then load menu items

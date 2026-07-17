@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { getOrderByIdApi, type Order } from "@/lib/api/order.api";
+import { getCustomerOrderConfirmationApi, type Order } from "@/lib/api/order.api";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
+import { getCustomerSessionId } from "@/lib/customerSession";
+import { getContext } from "@/lib/tableContext";
 
 export const Route = createFileRoute("/customer/order-confirmation/$id")({
   component: ConfirmationPage,
@@ -30,8 +32,14 @@ function ConfirmationPage() {
   useEffect(() => {
     async function fetchOrder() {
       try {
-        // Try to find order by orderNumber first
-        const { order: orderData } = await getOrderByIdApi(id);
+        const customerSessionId = getCustomerSessionId();
+        const qrCodeId = getContext()?.qrCodeId;
+        if (!customerSessionId || !qrCodeId) throw new Error("Missing ordering context");
+        const { order: orderData } = await getCustomerOrderConfirmationApi(
+          customerSessionId,
+          id,
+          qrCodeId,
+        );
         setOrder(orderData);
       } catch (error) {
         console.error("Failed to fetch order:", error);
@@ -57,7 +65,13 @@ function ConfirmationPage() {
 
   const orderNumber = order?.orderNumber || id;
   const orderType = order?.orderType;
-  const tableLabel = order?.tableId ? `Table ${order.tableId}` : order?.roomId ? `Room ${order.roomId}` : orderType === "TAKEAWAY" ? "Takeaway" : "";
+  const tableLabel = order?.tableId
+    ? `Table ${order.tableId}`
+    : order?.roomId
+      ? `Room ${order.roomId}`
+      : orderType === "TAKEAWAY"
+        ? "Takeaway"
+        : "";
 
   return (
     <CustomerLayout title="Order confirmed">
@@ -66,7 +80,10 @@ function ConfirmationPage() {
           <CheckCircle2 className="h-10 w-10" />
         </div>
         <h1 className="mt-5 font-display text-2xl">Thank you!</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Your order <span className="font-medium text-foreground">{orderNumber}</span> has been received.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Your order <span className="font-medium text-foreground">{orderNumber}</span> has been
+          received.
+        </p>
       </div>
 
       {order && (
@@ -75,7 +92,7 @@ function ConfirmationPage() {
             <p className="text-muted-foreground">Order type</p>
             <p className="font-display text-lg font-semibold">{orderType}</p>
           </div>
-          
+
           {tableLabel && (
             <div className="rounded-2xl border border-border bg-card p-5 text-sm">
               <p className="text-muted-foreground">Location</p>
@@ -85,7 +102,9 @@ function ConfirmationPage() {
 
           <div className="rounded-2xl border border-border bg-card p-5 text-sm">
             <p className="text-muted-foreground">Total amount</p>
-            <p className="font-display text-2xl font-semibold">{formatCurrency(order.total, currency)}</p>
+            <p className="font-display text-2xl font-semibold">
+              {formatCurrency(order.total, currency)}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5 text-sm">
@@ -97,7 +116,9 @@ function ConfirmationPage() {
 
       <div className="space-y-2 p-4">
         <Button asChild size="lg" className="h-12 w-full rounded-full bg-primary">
-          <Link to="/customer/order-tracking/$id" params={{ id: orderNumber }}>Track order</Link>
+          <Link to="/customer/order-tracking/$id" params={{ id: orderNumber }}>
+            Track order
+          </Link>
         </Button>
         <Button asChild size="lg" variant="outline" className="h-11 w-full rounded-full">
           <Link to="/customer/menu">Order more</Link>

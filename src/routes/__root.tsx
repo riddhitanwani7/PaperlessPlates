@@ -11,7 +11,6 @@ import "@/i18n";
 import { useTranslation } from "react-i18next";
 
 import { Toaster } from "@/components/ui/sonner";
-import { setContext, type QRContext } from "@/lib/tableContext";
 
 function NotFoundComponent() {
   const { t } = useTranslation();
@@ -21,9 +20,7 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">{t("errors.pageNotFound")}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {t("errors.pageNotFoundDescription")}
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">{t("errors.pageNotFoundDescription")}</p>
         <div className="mt-6">
           <Link
             to="/"
@@ -48,9 +45,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           {t("errors.thisPageDidntLoad")}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {t("errors.errorDescription")}
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">{t("errors.errorDescription")}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
@@ -121,18 +116,10 @@ function CustomerContextPreserver() {
 
       contextRef.current = context;
 
-      // The server validates this opaque QR ID and derives the table/room.
-      // Query-string labels are only retained for legacy navigation display.
-      if (context.qr) {
-        const qrContext: QRContext = context.table
-          ? { type: "TABLE", qrCodeId: context.qr, tableId: context.table }
-          : context.room
-            ? { type: "ROOM", qrCodeId: context.qr, roomId: context.room }
-            : context.takeaway
-              ? { type: "TAKEAWAY", qrCodeId: context.qr }
-              : { type: "RESTAURANT", qrCodeId: context.qr };
-        setContext(qrContext);
-      }
+      // Only the public QR lookup may establish the ordering context. In
+      // particular, a secure QR URL intentionally contains no table or room
+      // label, so deriving a context here would overwrite the server-resolved
+      // context whenever the customer changes routes.
       return;
     }
 

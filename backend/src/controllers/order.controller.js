@@ -25,6 +25,24 @@ export const getCustomerOrders = asyncHandler(async (req, res) => {
   });
 });
 
+export const getCustomerOrderConfirmation = asyncHandler(async (req, res) => {
+  const { customerSessionId, orderId } = req.params;
+  const { qrCodeId } = req.query;
+  if (!qrCodeId) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid or expired ordering link. Please scan the QR code again.",
+    });
+  }
+
+  const order = await orderService.getCustomerOrderByIdAndContext({
+    customerSessionId,
+    orderId,
+    qrCodeId,
+  });
+  res.json({ success: true, data: { order } });
+});
+
 export const getRestaurantOrders = asyncHandler(async (req, res) => {
   const restaurantId = req.user.restaurantId;
   if (!restaurantId) {
@@ -83,14 +101,14 @@ export const updateOrderPaymentStatus = asyncHandler(async (req, res) => {
 export const getCustomerOrdersByContext = asyncHandler(async (req, res) => {
   const { customerSessionId } = req.params;
   const { qrCodeId, restaurantId, tableId, roomId, orderType } = req.query;
-  
+
   if (!qrCodeId) {
     return res.status(400).json({
       success: false,
       message: "Invalid or expired ordering link. Please scan the QR code again.",
     });
   }
-  
+
   const orders = await orderService.getCustomerOrdersByContext({
     customerSessionId,
     qrCodeId,
@@ -99,7 +117,7 @@ export const getCustomerOrdersByContext = asyncHandler(async (req, res) => {
     roomId,
     orderType,
   });
-  
+
   res.json({
     success: true,
     data: { orders },
